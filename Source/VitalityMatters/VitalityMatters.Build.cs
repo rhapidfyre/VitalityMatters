@@ -10,14 +10,14 @@ public class VitalityMatters : ModuleRules
 		
 		PublicIncludePaths.AddRange(
 			new string[] {
-				// ... add public include paths required here ...
+				//"VitalityMatters/Public","VitalityMatters/Public/lib",
 			}
 			);
 				
 		
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				// ... add other private include paths required here ...
+				//"VitalityMatters/Private","VitalityMatters/Private/lib"
 			}
 			);
 			
@@ -38,7 +38,7 @@ public class VitalityMatters : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				// ... add private dependencies that you statically link with here ...	
+				"EnhancedInput"
 			}
 			);
 		
