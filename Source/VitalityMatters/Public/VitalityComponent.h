@@ -36,7 +36,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 // Called whenever any stat changes
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FOnStatModified,		EVitalityCategories, VitalityStat,
-	float, OldValue,		float, NewValue);
+							float, OldValue,		float, NewValue);
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -47,6 +47,14 @@ class VITALITYMATTERS_API UVitalityComponent : public UActorComponent
 public: // public functions
 	
 	UVitalityComponent();
+
+	FOnStatModified OnStatModified;
+	FOnDamageTaken OnDamageTaken;
+	FOnHealed OnHealed;
+	FOnDeath OnDeath;
+	FOnSprint OnSprint;
+	FOnEffectBeneficial OnEffectBeneficial;
+	FOnEffectDetrimental OnEffectDetrimental;
 
 	/** Client or Server\n Checks if mIsSprinting is true (sprint mechanic on)
 	 * @return True if sprinting is active, false if it is not.
@@ -81,34 +89,55 @@ public: // public functions
 
 	/** Server Only\n Adds the requested benefit enum.
 	 * @param EffectBeneficial The num to apply/revoke.
+	 * @param StackCount The number of times to apply the effect
+	 * @return True if the effect was added. False on failure.
 	 */
 	UFUNCTION(BlueprintCallable)
-	bool ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial);
+	bool ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
 
 	/** Server Only\n Removes the requested benefit enum.
 	 * @param EffectBeneficial The num to apply/revoke.
+	 * @param StackCount The number of identical effects to remove
+	 * @return True if the effect was removed. False on failure.
 	 */
 	UFUNCTION(BlueprintCallable)
-	bool RevokeEffectBeneficial(EEffectsBeneficial EffectBeneficial);
+	bool RevokeEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
 
 	/** Server Only\n Adds the requested detriment enum.
 	 * @param EffectDetrimental The num to apply/revoke.
+	 * @param StackCount The number of times to apply the effect
+	 * @return True if the effect was added. False on failure.
 	 */
 	UFUNCTION(BlueprintCallable)
-	bool ApplyEffectDetrimental(EEffectsDetrimental EffectDetrimental);
+	bool ApplyEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount = 1);
 
 	/** Server Only\n Removes the requested detriment enum.
 	 * @param EffectDetrimental The num to apply/revoke.
+	 * @param StackCount The number of identical effects to remove
+	 * @return True if the effect was removed. False on failure.
 	 */
 	UFUNCTION(BlueprintCallable)
-	bool RevokeEffectDetrimental(EEffectsDetrimental EffectDetrimental);
+	bool RevokeEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount = 1);
 
+	/** Server Only\n Removes the effect at the given index.
+	 * @param IndexNumber The index number of the current effect to remove
+	 * @return True if the effect was removed. False on failure.
+	 */
+	UFUNCTION(BlueprintCallable)
+	bool RevokeEffect(int IndexNumber = 0);
+	
 	/** Server or Client\n Starts or Stops the Sprinting Mechanic.
 	 * @param DoSprint If true, attempts to start sprinting. False stops.
 	 */
 	UFUNCTION(BlueprintCallable)
 	void ToggleSprint(bool DoSprint = false);
 
+	FStVitalityEffects GetVitalityEffect(FName EffectName);
+
+	FStVitalityEffects GetVitalityEffect(EEffectsBeneficial EffectEnum);
+
+	FStVitalityEffects GetVitalityEffect(EEffectsDetrimental EffectEnum);
+	
 protected: // protected functions
 
 	virtual void BeginPlay() override;
@@ -235,8 +264,12 @@ private: // private members
 	UPROPERTY(Replicated) TArray<FStVitalityEffects> mCurrentEffects;
 	// Handles ticking of relevant ticks (effects, stamina, etc)
 	UPROPERTY() FTimerHandle mTickTimer;
+	UPROPERTY() FTimerHandle mStaminaTimer;
 	// Handles stamina cooldown before regen can occur
 	UPROPERTY() FTimerHandle mStaminaCooldownTimer;
+
+	// Mutex Locks
+	bool mEffectsMutex = false;
 	
 	// Stamina Subsystem
 	UPROPERTY(Replicated) bool mIsSprinting = false;	// True if actively sprinting
@@ -245,6 +278,7 @@ private: // private members
 	UPROPERTY(Replicated) float mStaminaValue = 100.f;	// Current Stamina
 	UPROPERTY(Replicated) float mStaminaMax   = 100.f;  // Maximum Stamina
 	float mSprintSpeed = 1.2; // Percentage of base speed increase when sprinting
+	bool mCanSprint		= false;
 
 	// Health Subsystem
 	UPROPERTY(Replicated) float mHealthValue = 100.f;	// Current Health

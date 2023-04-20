@@ -62,4 +62,6 @@ struct FStVitalityEffects : public FTableRowBase
 	// Optional actor class to spawn. Useful for sounds, effects, etc.
 	// Leave as None/Empty/Null if not desired
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TSubclassOf<AActor> optionalClass;
+	// If true, disallows sprinting while this effect is active
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool disableSprinting = false;
 };
