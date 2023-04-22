@@ -8,7 +8,7 @@
 
 UDataTable* GetVitalityEffectsTable()
 {
-	const FSoftObjectPath itemTable = FSoftObjectPath("/T5GInventorySystem/DataTables/DT_ItemData.DT_ItemData");
+	const FSoftObjectPath itemTable = FSoftObjectPath("/VitalityMatters/DataTables/DT_VitalityData.DT_VitalityData");
 	UDataTable* dataTable = Cast<UDataTable>(itemTable.ResolveObject());
 	if (IsValid(dataTable)) return dataTable;
 	return Cast<UDataTable>(itemTable.TryLoad());
@@ -49,26 +49,74 @@ FStVitalityEffects UVitalityComponent::GetVitalityEffect(EEffectsDetrimental Eff
 	return FStVitalityEffects();
 }
 
+int UVitalityComponent::GetNumActiveBenefit(EEffectsBeneficial BenefitEffect)
+{
+	if (BenefitEffect == EEffectsBeneficial::NONE)
+		return 0;
+	int benefitCount(0);
+	for (int i = 0; mCurrentEffects.Num(); i++)
+	{
+		if (mCurrentEffects[i].benefitEffect == BenefitEffect)
+			benefitCount++;
+	}
+	return benefitCount;
+}
+
+int UVitalityComponent::GetNumActiveDetriment(EEffectsDetrimental DetrimentEffect)
+{
+	if (DetrimentEffect == EEffectsDetrimental::NONE)
+		return 0;
+	int detrimentCount(0);
+	for (int i = 0; mCurrentEffects.Num(); i++)
+	{
+		if (mCurrentEffects[i].detrimentEffect == DetrimentEffect)
+			detrimentCount++;
+	}
+	return detrimentCount;
+}
+
 // Sets default values for this component's properties
 UVitalityComponent::UVitalityComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	SetIsReplicatedByDefault(true);
+	SetAutoActivate(true);
 }
 
-float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat, bool AsPercentage)
+void UVitalityComponent::OnComponentCreated()
 {
+	Super::OnComponentCreated();
+	RegisterComponent();
+}
+
+
+float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax)
+{
+	
 	switch(VitalityStat)
 	{
 	case EVitalityCategories::HEALTH:
-		return AsPercentage ? (mHealthValue/mHealthMax) : mHealthValue;
+		StatValue = mHealthValue;
+		StatMax = mHealthMax;
+		return mHealthValue/mHealthMax;
 	case EVitalityCategories::STAMINA:
-		return AsPercentage ? (mStaminaValue/mStaminaMax) : mStaminaValue;
+		StatValue = mStaminaValue;
+		StatMax = mStaminaMax;
+		return mStaminaValue/mStaminaMax;
 	case EVitalityCategories::HUNGER:
-		return AsPercentage ? (mCaloriesValue/mCaloriesMax) : mHealthValue;
+		StatValue = mCaloriesValue;
+		StatMax = mCaloriesMax;
+		return mCaloriesValue/mCaloriesMax;
 	case EVitalityCategories::THIRST:
-		return AsPercentage ? (mHydrationValue/mHydrationMax) : mHealthValue;
+		StatValue = mHydrationValue;
+		StatMax = mHydrationMax;
+		return mHydrationValue/mHydrationMax;
 	case EVitalityCategories::MAGIC:
-		return AsPercentage ? (mHealthValue/mHealthMax) : mHealthValue;
+		StatValue = mMagicValue;
+		StatMax = mMagicMax;
+		return mMagicValue/mMagicMax;
+	default:
+		break;
 	}
 	return -0.f;
 }
@@ -99,8 +147,60 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 float UVitalityComponent::ModifyVitalityStat(EVitalityCategories VitalityStat, float AddValue)
 {
 	if (AddValue != 0.f)
-		return SetVitalityStat(VitalityStat, GetVitalityStat(VitalityStat, false) + AddValue);
+	{
+		float statValue(0.f); float statMax(0.f);
+		GetVitalityStat(VitalityStat, statValue, statMax);
+		return SetVitalityStat(VitalityStat, statValue + AddValue);
+	}
 	return 0.f;
+}
+
+bool UVitalityComponent::RemoveEffectByUniqueId(int UniqueId)
+{
+	if (UniqueId < 1)
+		return false;
+	for (int i = 0; i < mCurrentEffects.Num(); i++)
+	{
+		mEffectsRemoveQueue.Add(UniqueId);
+		return true;
+	}
+	return false;
+}
+
+bool UVitalityComponent::ApplyEffect(FName EffectName, int StackCount)
+{
+	FStVitalityEffects vitalityData = GetVitalityEffect(EffectName);
+	vitalityData.uniqueId = GenerateUniqueId();
+	if (vitalityData.uniqueId < 1)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to generate unique ID for ApplyEffectBeneficial"));
+		return false;
+	}
+	if (!vitalityData.properName.IsNone())
+	{
+		for (int i = 0; i < StackCount; i++)
+		{
+			mEffectsAddQueue.Add(vitalityData);
+		}
+	}
+	return false;
+}
+
+bool UVitalityComponent::RemoveEffect(FName EffectName, int RemoveCount)
+{
+	TArray<int> effectsRemoved;
+	int removalEntries = RemoveCount < mCurrentEffects.Num() ? RemoveCount : mCurrentEffects.Num();
+	for (int i = 0; i < mCurrentEffects.Num(); i++)
+	{
+		if (effectsRemoved.Num() >= RemoveCount)
+			break;
+		if (mCurrentEffects[i].properName == EffectName)
+		{
+			effectsRemoved.Add(mCurrentEffects[i].uniqueId);
+			mEffectsRemoveQueue.Add(mCurrentEffects[i].uniqueId);
+		}
+	}
+	return (effectsRemoved.Num() > 0);
 }
 
 bool UVitalityComponent::ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount)
@@ -111,6 +211,12 @@ bool UVitalityComponent::ApplyEffectBeneficial(EEffectsBeneficial EffectBenefici
 
 	// Obtain the appropriate vitality effect the given StackCount number of times
 	FStVitalityEffects vitalityData = GetVitalityEffect(EffectBeneficial);
+	vitalityData.uniqueId = GenerateUniqueId();
+	if (vitalityData.uniqueId < 1)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to generate unique ID for ApplyEffectBeneficial"));
+		return false;
+	}
 	if (vitalityData.benefitEffect != EEffectsBeneficial::NONE)
 	{
 		int effectStackCount(1);
@@ -119,9 +225,7 @@ bool UVitalityComponent::ApplyEffectBeneficial(EEffectsBeneficial EffectBenefici
 			if (mCurrentEffects[i].benefitEffect == EffectBeneficial)
 				effectStackCount += 1;
 		}
-		mCurrentEffects.Add(vitalityData);
-		// Notify listeners
-		OnEffectBeneficial.Broadcast(vitalityData.benefitEffect, true);
+		mEffectsAddQueue.Add(vitalityData);
 	}
 	return false;
 }
@@ -133,22 +237,23 @@ bool UVitalityComponent::RevokeEffectBeneficial(EEffectsBeneficial EffectBenefic
 		return false;
 
 	// Removes the given effect, StackCount number of times
-	int effectsRemoved = 0;
-	while (mEffectsMutex);
-	mEffectsMutex = true;
-	for (int i = mCurrentEffects.Num() - 1; i >= 0; i--)
+	TArray<int> removedUniqueIds;
+	for (int i = 0; i < mCurrentEffects.Num(); i++)
 	{
-		if (effectsRemoved >= StackCount)
+		if (removedUniqueIds.Num() >= StackCount)
 			break;
 		// If this effect matches the benefit to revoke, remove it
 		if (mCurrentEffects[i].benefitEffect == EffectBeneficial)
 		{
-			mCurrentEffects.RemoveAt(i);
-			effectsRemoved++;
+			removedUniqueIds.Add(mCurrentEffects[i].uniqueId);
+			mEffectsRemoveQueue.Add(mCurrentEffects[i].uniqueId);
 		}
 	}
-	mEffectsMutex = false;
-	return (effectsRemoved > 0);
+	
+	for (int i = 0; i < removedUniqueIds.Num(); i++)
+			OnEffectModified.Broadcast(removedUniqueIds[i], false);
+	
+	return (removedUniqueIds.Num() > 0);
 }
 
 bool UVitalityComponent::ApplyEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount)
@@ -159,6 +264,12 @@ bool UVitalityComponent::ApplyEffectDetrimental(EEffectsDetrimental EffectDetrim
 
 	// Obtain the effect data, and apply it the number of StackCount times
 	FStVitalityEffects vitalityData = GetVitalityEffect(EffectDetrimental);
+	vitalityData.uniqueId = GenerateUniqueId();
+	if (vitalityData.uniqueId < 1)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to generate unique ID for ApplyEffectBeneficial"));
+		return false;
+	}
 	if (vitalityData.detrimentEffect != EEffectsDetrimental::NONE)
 	{
 		int effectStackCount(1);
@@ -167,16 +278,13 @@ bool UVitalityComponent::ApplyEffectDetrimental(EEffectsDetrimental EffectDetrim
 			if (mCurrentEffects[i].detrimentEffect == EffectDetrimental)
 				effectStackCount += 1;
 		}
-		mCurrentEffects.Add(vitalityData);
+		mEffectsAddQueue.Add(vitalityData);
 
 		// If this effect disables sprinting and sprint is enabled, disable it.
 		if (vitalityData.disableSprinting && mCanSprint)
 		{
 			mCanSprint = false;
 		}
-
-		// Tell all other scripts that are listening
-		OnEffectBeneficial.Broadcast(vitalityData.benefitEffect, true);
 	}
 	return false;
 }
@@ -188,24 +296,21 @@ bool UVitalityComponent::RevokeEffectDetrimental(EEffectsDetrimental EffectDetri
 		return false;
 
 	// Remove the effect the given number of times, or until all occurrences are gone. Whichever occurs first.
-	int effectsRemoved = 0;
-	while (mEffectsMutex);
-	mEffectsMutex = true;
-	for (int i = mCurrentEffects.Num() - 1; i >= 0; i--)
+	TArray<int> removedUniqueIds;
+	for (int i = 0; i < mCurrentEffects.Num(); i++)
 	{
-		if (effectsRemoved >= StackCount)
+		if (removedUniqueIds.Num() >= StackCount)
 			break;
 		
 		if (mCurrentEffects[i].detrimentEffect == EffectDetrimental)
 		{
-			mCurrentEffects.RemoveAt(i);
-			effectsRemoved++;
+			removedUniqueIds.Add(mCurrentEffects[i].uniqueId);
+			mEffectsRemoveQueue.Add(mCurrentEffects[i].uniqueId);
 		}
 	}
-	mEffectsMutex = false;
 
 	// Nothing was removed, the effect wasn't applied
-	if (effectsRemoved < 1)
+	if (removedUniqueIds.Num() < 1)
 		return true;
 	
 	// If sprinting is disabled, enable sprinting if none of the effects block sprinting
@@ -226,11 +331,11 @@ bool UVitalityComponent::RevokeEffectDetrimental(EEffectsDetrimental EffectDetri
 	return true;
 }
 
-bool UVitalityComponent::RevokeEffect(int IndexNumber)
+bool UVitalityComponent::RemoveEffectAtIndex(int IndexNumber)
 {
 	if (mCurrentEffects.IsValidIndex(IndexNumber))
 	{
-		mCurrentEffects.RemoveAt(IndexNumber);
+		mEffectsRemoveQueue.RemoveAt(IndexNumber);
 		return true;
 	}
 	return false;
@@ -240,7 +345,7 @@ void UVitalityComponent::ToggleSprint(bool DoSprint)
 {
 	if (!GetOwner()->HasAuthority())
 	{
-		Server_ToggleSprint();
+		Server_ToggleSprint(DoSprint);
 		return;
 	}
 	if (DoSprint && mCanSprint)
@@ -250,7 +355,21 @@ void UVitalityComponent::ToggleSprint(bool DoSprint)
 	else
 	{
 		mIsSprinting = false;
+		OnSprint.Broadcast(mIsSprinting);
 	}
+}
+
+FStVitalityEffects UVitalityComponent::GetEffectByUniqueId(int UniqueId)
+{
+	if (UniqueId > 0)
+	{
+		for (int i = 0; mCurrentEffects.Num(); i++)
+		{
+			if (mCurrentEffects[i].uniqueId == UniqueId)
+				return mCurrentEffects[i];
+		}
+	}
+	return {};
 }
 
 // Called when the game starts
@@ -272,15 +391,15 @@ void UVitalityComponent::TickStamina()
 		if (mStaminaValue <= 0)
 		{
 			StopSprinting();
-			ApplyEffectDetrimental(EEffectsDetrimental::TIRED, 1);
+			ApplyEffect("tired");
+			mStaminaValue = 0;
 		}
 	}
 	else
 	{
 		if (mStaminaValue > 0)
-		{
-			RevokeEffectDetrimental(EEffectsDetrimental::TIRED, 1);
-
+		{			
+			// If stamina is fully regenerated, kill the timer. It's not needed anymore.
 			if (mStaminaValue >= mStaminaMax)
 			{
 				mStaminaValue = mStaminaMax;
@@ -321,7 +440,7 @@ void UVitalityComponent::TickCalories()
 		if (mCaloriesValue <= 0.f)
 		{
 			mCaloriesValue = 0.f;
-			ApplyEffectDetrimental((EEffectsDetrimental::HUNGER));
+			ApplyEffect("hungry");
 		}
 	}
 }
@@ -334,7 +453,7 @@ void UVitalityComponent::TickHydration()
 		if (mHydrationValue <= 0.f)
 		{
 			mHydrationValue = 0.f;
-			ApplyEffectDetrimental((EEffectsDetrimental::THIRST));
+			ApplyEffect("thirsty");
 			mCanSprint = false;
 		}
 	}
@@ -342,22 +461,43 @@ void UVitalityComponent::TickHydration()
 
 void UVitalityComponent::TickEffects()
 {
-	while (mEffectsMutex);
+	if (mEffectsMutex) return;
 	mEffectsMutex = true;
-	for (int i = mCurrentEffects.Num(); i >= 0; i--)
+	
+	// Remove any effects that are pending removal
+	for (int i = mEffectsRemoveQueue.Num() - 1; i >= 0; i--)
+	{
+		for (int j = 0; j < mCurrentEffects.Num(); j++)
+		{
+			if (mCurrentEffects[j].uniqueId == mEffectsRemoveQueue[i])
+			{
+				mCurrentEffects.RemoveAt(j);
+				OnEffectModified.Broadcast(mEffectsRemoveQueue[i], false);
+				break;
+			}
+		}
+		mEffectsRemoveQueue.RemoveAt(i);
+	}
+	
+	// Perform any logic effects need done per tick
+	for (int i = 0; i < mCurrentEffects.Num(); i++)
 	{
 		if (mCurrentEffects.IsValidIndex(i))
 		{
 			FStVitalityEffects vitalityData = mCurrentEffects[i];
 			if (!vitalityData.isPersistent)
 			{
-				mCurrentEffects[i].effectSeconds--;
-				if (mCurrentEffects[i].effectSeconds <= 0)
-				{
-					RevokeEffect(i);
-				}
+				mCurrentEffects[i].effectTicks--;
 			}
 		}
+	}
+	
+	// Add any affects that need to be added
+	for (int i = mEffectsAddQueue.Num() - 1; i >= 0; i--)
+	{
+		mCurrentEffects.Add( mEffectsAddQueue[i] );
+		OnEffectModified.Broadcast(mEffectsAddQueue[i].uniqueId, true);
+		mEffectsAddQueue.RemoveAt(i);
 	}
 	mEffectsMutex = false;
 }
@@ -380,6 +520,8 @@ void UVitalityComponent::TickManager()
 void UVitalityComponent::InitSubsystems(bool isCharacter)
 {
 
+	if (!GetOwner()->HasAuthority()) return;
+	
 	// Read settings and set members
 
 	const float managerTickRate = VitalityTickRate <= 0.f ? 1.f : VitalityTickRate;
@@ -400,15 +542,18 @@ void UVitalityComponent::InitSubsystems(bool isCharacter)
 		mStaminaRegen		= StaminaRegenRate		>= 0.f ? StaminaRegenRate		:		2.f;
 		mStaminaMax			= StaminaMaximum		 > 0.f ? StaminaMaximum			:	  100.f;
 		mStaminaValue		= mStaminaMax;
-	}
-	// Non-Character Initialization
-	else
-	{
+		
 		mMagicMax			= MagicMaximum			>  0.f ? MagicMaximum			:		1.f;
 		mCaloriesDrainRest	= CaloriesAtRest		>= 0.f ? CaloriesAtRest			:	    0.002;
 		mHydrationDrainRest = HungerAtRest			>= 0.f ? HungerAtRest			:	    0.002;
 		mCaloriesMax		= CaloriesMaximum		>  0.f ? CaloriesMaximum 		:	  100.f;
 		mHydrationMax		= HydrationMaximum		>  0.f ? HydrationMaximum		:	  100.f;
+		
+	}
+	// Non-Character Initialization (Crates, Ships, Etc)
+	else
+	{
+		
 	}
 	
 	// Initialization, All Cases
@@ -459,6 +604,37 @@ void UVitalityComponent::EndStaminaCooldown()
 	}
 }
 
+void UVitalityComponent::Server_ToggleSprint_Implementation(bool DoSprint)
+{
+	ToggleSprint(DoSprint);
+}
+
+int UVitalityComponent::GenerateUniqueId()
+{
+	int randomNumber(-1);
+	while (randomNumber < 1)
+	{
+		bool idExists = false;
+		int tempNumber = FMath::RandRange(1,INT_MAX);
+		for (int i = 0; i < mCurrentEffects.Num(); i++)
+		{
+			if (mCurrentEffects[i].uniqueId == tempNumber)
+			{
+				idExists = true;
+				break;
+			}
+		}
+		if (!idExists)
+			randomNumber = tempNumber;
+	}
+	return randomNumber;
+}
+
+void UVitalityComponent::OnRep_CurrentEffects_Implementation()
+{
+	OnEffectModified.Broadcast(0, true);
+}
+
 
 /****************************************
  * REPLICATION
@@ -470,9 +646,22 @@ void UVitalityComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> & 
 
 	// Update to owner only.
 	// These vars only have value to the actor it affects and no-one else.
-	DOREPLIFETIME_CONDITION(UVitalityComponent, mIsSprinting,	COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UVitalityComponent, mStaminaValue,	COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UVitalityComponent, mStaminaMax,	COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mIsSprinting,		COND_OwnerOnly);
+	
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mStaminaValue,		COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mStaminaMax,		COND_OwnerOnly);
+	
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mHealthValue,		COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mHealthMax,			COND_OwnerOnly);
+	
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mMagicValue,		COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mMagicMax,			COND_OwnerOnly);
+	
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mCaloriesValue,		COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mCaloriesMax,		COND_OwnerOnly);
+	
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mHydrationValue,	COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UVitalityComponent, mHydrationMax,		COND_OwnerOnly);
 
 	// Effects don't need to be multicast.
 	// If the effect spawns an actor, it'll be done server-side and synced.

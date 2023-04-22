@@ -27,11 +27,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 
 // Called whenever the actor has a beneficial effect applied or removed
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-	FOnEffectBeneficial,	EEffectsBeneficial,  EffectEnum, bool, EffectActive);
-
-// Called whenever the actor has a detrimental effect applied or removed
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-	FOnEffectDetrimental,	EEffectsDetrimental, EffectEnum, bool, EffectActive);
+	FOnEffectModified,		int, UniqueId, bool, EffectActive);
 
 // Called whenever any stat changes
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
@@ -47,14 +43,26 @@ class VITALITYMATTERS_API UVitalityComponent : public UActorComponent
 public: // public functions
 	
 	UVitalityComponent();
+	virtual void OnComponentCreated() override;
 
-	FOnStatModified OnStatModified;
-	FOnDamageTaken OnDamageTaken;
-	FOnHealed OnHealed;
-	FOnDeath OnDeath;
-	FOnSprint OnSprint;
-	FOnEffectBeneficial OnEffectBeneficial;
-	FOnEffectDetrimental OnEffectDetrimental;
+	// SERVER - Called whenever a stat's value is changed
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnStatModified OnStatModified;
+
+	// SERVER - Called whenever damage is taken
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnDamageTaken OnDamageTaken;
+
+	// SERVER - Called whenever health is replenished by another Actor
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnHealed OnHealed;
+
+	// SERVER - Called whenever the player dies
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnDeath OnDeath;
+
+	// SERVER - Called whenever sprinting is toggled
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnSprint OnSprint;
+
+	// SERVER - Called whenever an effect is added or removed.
+	// CLIENT ONLY - Always called with Unique ID zero when the effects array is replicated
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnEffectModified OnEffectModified;
 
 	/** Client or Server\n Checks if mIsSprinting is true (sprint mechanic on)
 	 * @return True if sprinting is active, false if it is not.
@@ -64,11 +72,12 @@ public: // public functions
 
 	/** Client or Server\n Gets the request vitality enum value.
 	 * @param VitalityStat The stat to be retrieved
-	 * @param AsPercentage If true, returns value as a percentage of maximum.
+	 * @param StatValue The value (by ref) of the current stat
+	 * @param StatMax The maximum value (by ref) of the stat
 	 * @return The value of health, either as a float or a percentage.
 	 */
 	UFUNCTION(BlueprintPure)
-	float GetVitalityStat(EVitalityCategories VitalityStat, bool AsPercentage = true);
+	float GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax);
 
 	/** Server Only \n Sets the given stat to the given value.
 	 * Does nothing if run on the client. Straight logic, no math.
@@ -86,6 +95,28 @@ public: // public functions
 	 */
 	UFUNCTION(BlueprintCallable)
 	float ModifyVitalityStat(EVitalityCategories VitalityStat, float AddValue = 0.f);
+
+	/** Removes the effect with the given Unique ID number.
+	 * @param UniqueId The unique ID to remove. Defaults to 0. Fails if < 1.
+	 * @return True on successful removal. False on failure, or if effect did not exist.
+	 */
+	UFUNCTION(BlueprintCallable)
+	bool RemoveEffectByUniqueId(int UniqueId = 0);
+	
+	/** Server Only\n Adds the requested benefit.
+	 * @param EffectName The table row name to apply.
+	 * @param StackCount The number of times to apply the effect
+	 * @return True if the effect was added. False on failure.
+	 */
+	UFUNCTION(BlueprintCallable)
+	bool ApplyEffect(FName EffectName, int StackCount = 1);
+
+	/** Server Only\n Removes the requested benefit.
+	 * @param EffectName The table row name to revoke.
+	 * @param RemoveCount The number of times to remove the effect
+	 * @return True if the effect was removed at least once. False on failure.
+	 */
+	bool RemoveEffect(FName EffectName, int RemoveCount);
 
 	/** Server Only\n Adds the requested benefit enum.
 	 * @param EffectBeneficial The num to apply/revoke.
@@ -124,7 +155,7 @@ public: // public functions
 	 * @return True if the effect was removed. False on failure.
 	 */
 	UFUNCTION(BlueprintCallable)
-	bool RevokeEffect(int IndexNumber = 0);
+	bool RemoveEffectAtIndex(int IndexNumber = 0);
 	
 	/** Server or Client\n Starts or Stops the Sprinting Mechanic.
 	 * @param DoSprint If true, attempts to start sprinting. False stops.
@@ -137,6 +168,34 @@ public: // public functions
 	FStVitalityEffects GetVitalityEffect(EEffectsBeneficial EffectEnum);
 
 	FStVitalityEffects GetVitalityEffect(EEffectsDetrimental EffectEnum);
+
+	/** Returns the number of active counts of the requested benefit
+	 * @param BenefitEffect The benefit effect to look for
+	 * @return The number of times the benefit is in effect (at the time of request)
+	 */
+	UFUNCTION(BlueprintCallable)
+	int GetNumActiveBenefit(EEffectsBeneficial BenefitEffect);
+
+	/** Returns the number of active counts of the requested detrimental effect
+	 * @param DetrimentEffect The detrimental effect to look for
+	 * @return The number of times the detrimental is in effect (at the time of request)
+	 */
+	UFUNCTION(BlueprintCallable)
+	int GetNumActiveDetriment(EEffectsDetrimental DetrimentEffect);
+
+	/** Returns a TArray of all active effects, both beneficial and detrimental.
+	 * @return All active benefits at time of request.
+	 */
+	UFUNCTION(BlueprintPure)
+	TArray<FStVitalityEffects> GetAllActiveEffects() { return mCurrentEffects; }
+
+	/** Returns a copy of the FStVitalityEffect data by given Unique Id. If there is no effect with the
+	 * requested UniqueId, or the UniqueId is invalid, this function will return empty table.
+	 * @return The data object found (or empty object)
+	 */
+	UFUNCTION(BlueprintPure)
+	FStVitalityEffects GetEffectByUniqueId(int UniqueId);
+	
 	
 protected: // protected functions
 
@@ -181,7 +240,12 @@ private: // private functions
 	void EndStaminaCooldown();
 
 	// Helper function in the case ToggleSprint() is called on the client
-	void Server_ToggleSprint(bool DoSprint = false) { ToggleSprint(DoSprint); }
+	UFUNCTION(Server, Reliable) void Server_ToggleSprint(bool DoSprint = false);
+
+	int GenerateUniqueId();
+
+	UFUNCTION(Client, Reliable)
+	void OnRep_CurrentEffects();
 	
 public: // public members
 
@@ -241,7 +305,7 @@ public: // public members
 	// The amount of magic this actor has when full
 	// Only set during initialization.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Settings")
-	float CaloriesMaximum = 100.f;
+	float CaloriesMaximum = 500.f;
 	
 	// The amount of calories consumed when at rest (not performing any action)
 	// Only set during initialization.
@@ -251,17 +315,20 @@ public: // public members
 	// The amount of magic this actor has when full
 	// Only set during initialization.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Settings")
-	float HydrationMaximum = 100.f;
+	float HydrationMaximum = 500.f;
 	
 	// The amount of calories consumed when at rest (not performing any action)
 	// Only set during initialization.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Settings")
-	float HungerAtRest = 0.002;
+	float HungerAtRest = 0.082;
 	
 
 private: // private members
 
-	UPROPERTY(Replicated) TArray<FStVitalityEffects> mCurrentEffects;
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CurrentEffects) TArray<FStVitalityEffects> mCurrentEffects;
+	TArray<FStVitalityEffects> mEffectsAddQueue;
+	TArray<int> mEffectsRemoveQueue;
+	
 	// Handles ticking of relevant ticks (effects, stamina, etc)
 	UPROPERTY() FTimerHandle mTickTimer;
 	UPROPERTY() FTimerHandle mStaminaTimer;
@@ -275,23 +342,23 @@ private: // private members
 	UPROPERTY(Replicated) bool mIsSprinting = false;	// True if actively sprinting
 	float mStaminaDrain = 1.f;							// Drain Rate when Sprinting
 	float mStaminaRegen = 1.f;							// Regen Rate
-	UPROPERTY(Replicated) float mStaminaValue = 100.f;	// Current Stamina
-	UPROPERTY(Replicated) float mStaminaMax   = 100.f;  // Maximum Stamina
+	UPROPERTY(Replicated) float mStaminaValue = 1.f;	// Current Stamina
+	UPROPERTY(Replicated) float mStaminaMax   = 1.f;  // Maximum Stamina
 	float mSprintSpeed = 1.2; // Percentage of base speed increase when sprinting
-	bool mCanSprint		= false;
+	bool mCanSprint		= true;
 
 	// Health Subsystem
-	UPROPERTY(Replicated) float mHealthValue = 100.f;	// Current Health
-	UPROPERTY(Replicated) float mHealthMax   = 100.f;   // Maximum Health
+	UPROPERTY(Replicated) float mHealthValue = 1.f;		// Current Health
+	UPROPERTY(Replicated) float mHealthMax   = 1.f;		// Maximum Health
 	float mHealthRegen = 1.f;							// Passive health regen rate
 
 	// Nutrition Subsystem
-	UPROPERTY(Replicated) float mCaloriesValue  = 1.f;	// Current Calories
-	UPROPERTY(Replicated) float mCaloriesMax    = 1.f;  // Maximum Hydration
-	UPROPERTY(Replicated) float mHydrationValue = 1.f;	// Current Hydration
-	UPROPERTY(Replicated) float mHydrationMax   = 1.f;  // Maximum Hydration
-	float mCaloriesDrainRest   = 0.002;					// Rate calories are lost at rest
-	float mHydrationDrainRest  = 0.002;					// Rate of dehydration at rest
+	UPROPERTY(Replicated) float mCaloriesValue  = 1.f;		// Current Calories
+	UPROPERTY(Replicated) float mCaloriesMax    = 500.f;	// Maximum Hydration
+	UPROPERTY(Replicated) float mHydrationValue = 1.f;		// Current Hydration
+	UPROPERTY(Replicated) float mHydrationMax   = 500.f;	// Maximum Hydration
+	float mCaloriesDrainRest   = 0.082;						// Rate calories are lost at rest
+	float mHydrationDrainRest  = 0.082;						// Rate of dehydration at rest
 	
 	// Magic Subsystem
 	UPROPERTY(Replicated) float mMagicValue		= 1.f;	// Current Magic/mana

@@ -43,7 +43,7 @@ struct FStVitalityEffects : public FTableRowBase
 {
 	GENERATED_BODY()
 	// The proper name of this effect. Usually the same as the data table row name
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) FName properName = "UniqueName";
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FName properName = FName();
 	// The effect to apply. Overrides detrimentEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) EEffectsBeneficial benefitEffect = EEffectsBeneficial::NONE;
 	// The effect to apply. Overriden if benefitEffect is not NONE
@@ -54,8 +54,8 @@ struct FStVitalityEffects : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) UTexture2D* effectIcon = nullptr;
 	// This effect is permanent until death, destruction or manual removal.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool isPersistent = false;
-	// The maximum time the effect can last.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float effectSeconds = 0.f;
+	// The maximum ticks the effect can last (where ticks = tickRate of the Vitality Tick Rate)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int effectTicks = 0.f;
 	// If true, the optional actor spawned will attach to the Actor owning the vitality component
 	// Does nothing if optionalClass is unused.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool attachOnSpawn = true;
@@ -64,4 +64,6 @@ struct FStVitalityEffects : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TSubclassOf<AActor> optionalClass;
 	// If true, disallows sprinting while this effect is active
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool disableSprinting = false;
+	// Used internally. Setting this value does nothing.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int uniqueId = 0;
 };
