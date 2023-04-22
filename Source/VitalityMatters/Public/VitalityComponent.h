@@ -195,6 +195,10 @@ public: // public functions
 	 */
 	UFUNCTION(BlueprintPure)
 	FStVitalityEffects GetEffectByUniqueId(int UniqueId);
+
+	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect);
+	
+	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByBenefit(EEffectsBeneficial BenefitEffect);
 	
 	
 protected: // protected functions

@@ -335,7 +335,7 @@ bool UVitalityComponent::RemoveEffectAtIndex(int IndexNumber)
 {
 	if (mCurrentEffects.IsValidIndex(IndexNumber))
 	{
-		mEffectsRemoveQueue.RemoveAt(IndexNumber);
+		mEffectsRemoveQueue.Add(mCurrentEffects[IndexNumber].uniqueId);
 		return true;
 	}
 	return false;
@@ -372,6 +372,16 @@ FStVitalityEffects UVitalityComponent::GetEffectByUniqueId(int UniqueId)
 	return {};
 }
 
+TArray<FStVitalityEffects> UVitalityComponent::GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect)
+{
+	return {};
+}
+
+TArray<FStVitalityEffects> UVitalityComponent::GetAllEffectsByBenefit(EEffectsBeneficial BenefitEffect)
+{
+	return {};
+}
+
 // Called when the game starts
 void UVitalityComponent::BeginPlay()
 {
@@ -397,7 +407,7 @@ void UVitalityComponent::TickStamina()
 	}
 	else
 	{
-		if (mStaminaValue > 0)
+		if (GetEffe)
 		{			
 			// If stamina is fully regenerated, kill the timer. It's not needed anymore.
 			if (mStaminaValue >= mStaminaMax)
@@ -488,6 +498,10 @@ void UVitalityComponent::TickEffects()
 			if (!vitalityData.isPersistent)
 			{
 				mCurrentEffects[i].effectTicks--;
+				if (mCurrentEffects[i].effectTicks < 1)
+				{
+					RemoveEffectAtIndex(i);
+				}
 			}
 		}
 	}
@@ -574,13 +588,6 @@ void UVitalityComponent::StopSprinting()
 	if (GetOwner()->HasAuthority())
 	{
 		mIsSprinting = false;
-		if (!mStaminaCooldownTimer.IsValid())
-		{
-			// Setup the cooldown timer to prevent stamina regen
-			const float staminaCooldownRate = StaminaCooldown <= 0.f ? 3.f : StaminaCooldown;
-			GetWorld()->GetTimerManager().SetTimer(mStaminaCooldownTimer, this,
-				&UVitalityComponent::EndStaminaCooldown, staminaCooldownRate, false);
-		}
 		OnSprint.Broadcast(mIsSprinting);
 	}
 }
