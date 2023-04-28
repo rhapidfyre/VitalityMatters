@@ -1,5 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
+﻿
 #pragma once
 
 #include "CoreMinimal.h"
@@ -64,6 +63,15 @@ public: // public functions
 	// CLIENT ONLY - Always called with Unique ID zero when the effects array is replicated
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnEffectModified OnEffectModified;
 
+	/** An alternative to 'ModifyVitalityStat(HEALTH)'. Calls appropriate
+	 * events and handles death events as expected during normal gameplay.
+	 * @param DamageActor The AActor who dealt the damage. nullptr is treated as world damage.
+	 * @param DamageTaken The amount of damage taken. Defaults to zero float.
+	 * @return Returns the new health value. Negative return indicates failure.
+	 */
+	UFUNCTION(BlueprintCallable)
+	float DamageHealth(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
+	
 	/** Client or Server\n Checks if mIsSprinting is true (sprint mechanic on)
 	 * @return True if sprinting is active, false if it is not.
 	 */
@@ -250,6 +258,12 @@ private: // private functions
 	void InitializeTimer(FTimerHandle& timerHandle, FTimerDelegate timerDelegate);
 
 	void CancelTimer(FTimerHandle& timerHandle);
+
+	/** Sent to all clients from server when the DamageHealth() function runs
+	 * successfully. Used to trigger clientside events.
+	 * May arrive prior to the mHealthValue actually being changed.
+	 */
+	UFUNCTION(Client, Unreliable) void Multicast_DamageTaken(float DamageTaken = 0.f);
 	
 public: // public members
 

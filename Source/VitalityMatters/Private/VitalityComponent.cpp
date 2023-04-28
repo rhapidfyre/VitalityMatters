@@ -1,6 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-
+﻿
 #include "VitalityComponent.h"
 #include "GameFramework/Character.h"
 
@@ -54,6 +52,17 @@ void UVitalityComponent::OnComponentCreated()
 	RegisterComponent();
 }
 
+
+float UVitalityComponent::DamageHealth(AActor* DamageActor, float DamageTaken)
+{
+	const float oldHealth = mHealthValue;
+	if (mHealthValue < oldHealth)
+	{
+		OnDamageTaken.Broadcast(DamageActor, DamageTaken);
+	}
+	Multicast_DamageTaken(DamageTaken);
+	return ModifyVitalityStat(EVitalityCategories::HEALTH, DamageTaken);
+}
 
 float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax)
 {
@@ -381,10 +390,11 @@ bool UVitalityComponent::RevokeEffectDetrimental(EEffectsDetrimental EffectDetri
 		return false;
 
 
+	// Remove the effect the given number of times, or until all occurrences are gone. Whichever occurs first.
+	TArray<int> removedUniqueIds;
+	
 	// Explicit Scope for good measure
 	{
-		// Remove the effect the given number of times, or until all occurrences are gone. Whichever occurs first.
-		TArray<int> removedUniqueIds;
 		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
 		
 		for (int i = 0; i < mCurrentEffects.Num(); i++)
@@ -853,6 +863,11 @@ void UVitalityComponent::CancelTimer(FTimerHandle& timerHandle)
 			timerHandle.Invalidate();
 		}
 	}
+}
+
+void UVitalityComponent::Multicast_DamageTaken_Implementation(float DamageTaken)
+{
+	OnDamageTaken.Broadcast(nullptr, DamageTaken);
 }
 
 void UVitalityComponent::OnRep_CurrentEffects_Implementation()
