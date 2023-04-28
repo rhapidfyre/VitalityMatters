@@ -6,49 +6,6 @@
 
 #include "Net/UnrealNetwork.h"
 
-UDataTable* GetVitalityEffectsTable()
-{
-	const FSoftObjectPath itemTable = FSoftObjectPath("/VitalityMatters/DataTables/DT_VitalityData.DT_VitalityData");
-	UDataTable* dataTable = Cast<UDataTable>(itemTable.ResolveObject());
-	if (IsValid(dataTable)) return dataTable;
-	return Cast<UDataTable>(itemTable.TryLoad());
-}
-
-FStVitalityEffects UVitalityComponent::GetVitalityEffect(FName EffectName)
-{
-	UDataTable* vitalityData = GetVitalityEffectsTable();
-	if (IsValid(vitalityData))
-	{
-		const FString errorCaught;
-		FStVitalityEffects* vitalityPointer = vitalityData->FindRow<FStVitalityEffects>(EffectName, errorCaught);
-		if (vitalityPointer != nullptr)
-		{
-			return *vitalityPointer;
-		}
-	}
-	return FStVitalityEffects();
-}
-
-FStVitalityEffects UVitalityComponent::GetVitalityEffect(EEffectsBeneficial EffectEnum)
-{
-	if (EffectEnum != EEffectsBeneficial::NONE)
-	{
-		const FString effectString = UEnum::GetValueAsString(EffectEnum);
-		return GetVitalityEffect(*effectString);
-	}
-	return FStVitalityEffects();
-}
-
-FStVitalityEffects UVitalityComponent::GetVitalityEffect(EEffectsDetrimental EffectEnum)
-{
-	if (EffectEnum != EEffectsDetrimental::NONE)
-	{
-		const FString effectString = UEnum::GetValueAsString(EffectEnum);
-		return GetVitalityEffect(*effectString);
-	}
-	return FStVitalityEffects();
-}
-
 int UVitalityComponent::GetNumActiveBenefit(EEffectsBeneficial BenefitEffect)
 {
 	if (BenefitEffect == EEffectsBeneficial::NONE)
@@ -121,25 +78,116 @@ float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat, floa
 	return -0.f;
 }
 
+float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat)
+{
+	switch(VitalityStat)
+	{
+	case EVitalityCategories::HEALTH:
+		return mHealthValue/mHealthMax;
+	case EVitalityCategories::STAMINA:
+		return mStaminaValue/mStaminaMax;
+	case EVitalityCategories::HUNGER:
+		return mCaloriesValue/mCaloriesMax;
+	case EVitalityCategories::THIRST:
+		return mHydrationValue/mHydrationMax;
+	case EVitalityCategories::MAGIC:
+		return mMagicValue/mMagicMax;
+	default:
+		break;
+	}
+	return -0.f;
+}
+
 float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, float NewValue)
 {
 	switch(VitalityStat)
 	{
 	case EVitalityCategories::HEALTH:
 		mHealthValue = NewValue;
+		if (mHealthValue <= 0.f)
+		{
+			if (GetAllEffectsByDetriment(EEffectsDetrimental::DEAD).Num() == 0)
+			{
+				mEffectsAddQueue.Add( UVitalitySystem::GetVitalityEffect("dead") );
+			}
+			mHealthValue = 0.f;
+		}
+		if (mHealthValue < mHealthMax && !mHealthTimer.IsValid())
+		{
+			FTimerDelegate healthDelegate; healthDelegate.BindUObject(this, &UVitalityComponent::TickHealth);
+			InitializeTimer(mHealthTimer, healthDelegate);
+		}
 		return mHealthValue;
+		
 	case EVitalityCategories::STAMINA:
 		mStaminaValue = NewValue;
+		if (mStaminaValue <= 0.f)
+		{
+			if (GetAllEffectsByDetriment(EEffectsDetrimental::TIRED).Num() == 0)
+			{
+				mEffectsAddQueue.Add( UVitalitySystem::GetVitalityEffect("tired") );
+			}
+			mStaminaValue = 0.f;
+		}
+		else if (mStaminaValue < mStaminaMax && !mStaminaTimer.IsValid())
+		{
+			FTimerDelegate staminaDelegate; staminaDelegate.BindUObject(this, &UVitalityComponent::TickStamina);
+			InitializeTimer(mStaminaTimer, staminaDelegate);
+		}
 		return mStaminaValue;
+		
 	case EVitalityCategories::HUNGER:
 		mCaloriesValue = NewValue;
+		if (mCaloriesValue > (mCaloriesMax * 0.7))
+		{
+			if (GetAllEffectsByBenefit(EEffectsBeneficial::NOURISHED).Num() == 0)
+			{
+				mEffectsAddQueue.Add( UVitalitySystem::GetVitalityEffect("nourished") );
+			}
+		}
+		else if (mCaloriesValue < 0)
+		{
+			if (GetAllEffectsByDetriment(EEffectsDetrimental::HUNGER).Num() == 0)
+			{
+				mEffectsAddQueue.Add( UVitalitySystem::GetVitalityEffect("hungry") );
+			}
+		}
+		else if (!mCaloriesTimer.IsValid())
+		{
+			FTimerDelegate caloriesDelegate; caloriesDelegate.BindUObject(this, &UVitalityComponent::TickCalories);
+			InitializeTimer(mCaloriesTimer, caloriesDelegate);
+		}
 		return mCaloriesValue;
+		
 	case EVitalityCategories::THIRST:
 		mHydrationValue = NewValue;
+		if (mHydrationValue > (mHydrationMax * 0.7))
+		{
+			if (GetAllEffectsByBenefit(EEffectsBeneficial::HYDRATED).Num() == 0)
+			{
+				mEffectsAddQueue.Add( UVitalitySystem::GetVitalityEffect("hydrated") );
+			}
+		}
+		else if (mHydrationValue)
+		{
+			if (GetAllEffectsByDetriment(EEffectsDetrimental::THIRST).Num() == 0)
+			{
+				mEffectsAddQueue.Add( UVitalitySystem::GetVitalityEffect("thirst") );
+			}
+		}
+		else if (!mHydrationTimer.IsValid())
+		{
+			FTimerDelegate hydrationDelegate; hydrationDelegate.BindUObject(this, &UVitalityComponent::TickHydration);
+			InitializeTimer(mHydrationTimer, hydrationDelegate);
+		}
 		return mHydrationValue;
+		
 	case EVitalityCategories::MAGIC:
 		mMagicValue = NewValue;
 		return mMagicValue;
+		
+	default:
+		break;
 	}
 	return -0.f;
 }
@@ -169,7 +217,7 @@ bool UVitalityComponent::RemoveEffectByUniqueId(int UniqueId)
 
 bool UVitalityComponent::ApplyEffect(FName EffectName, int StackCount)
 {
-	FStVitalityEffects vitalityData = GetVitalityEffect(EffectName);
+	FStVitalityEffects vitalityData = UVitalitySystem::GetVitalityEffect(EffectName);
 	vitalityData.uniqueId = GenerateUniqueId();
 	if (vitalityData.uniqueId < 1)
 	{
@@ -189,7 +237,6 @@ bool UVitalityComponent::ApplyEffect(FName EffectName, int StackCount)
 bool UVitalityComponent::RemoveEffect(FName EffectName, int RemoveCount)
 {
 	TArray<int> effectsRemoved;
-	int removalEntries = RemoveCount < mCurrentEffects.Num() ? RemoveCount : mCurrentEffects.Num();
 	for (int i = 0; i < mCurrentEffects.Num(); i++)
 	{
 		if (effectsRemoved.Num() >= RemoveCount)
@@ -210,7 +257,7 @@ bool UVitalityComponent::ApplyEffectBeneficial(EEffectsBeneficial EffectBenefici
 		return false;
 
 	// Obtain the appropriate vitality effect the given StackCount number of times
-	FStVitalityEffects vitalityData = GetVitalityEffect(EffectBeneficial);
+	FStVitalityEffects vitalityData = UVitalitySystem::GetVitalityEffectByBenefit(EffectBeneficial);
 	vitalityData.uniqueId = GenerateUniqueId();
 	if (vitalityData.uniqueId < 1)
 	{
@@ -263,7 +310,7 @@ bool UVitalityComponent::ApplyEffectDetrimental(EEffectsDetrimental EffectDetrim
 		return false;
 
 	// Obtain the effect data, and apply it the number of StackCount times
-	FStVitalityEffects vitalityData = GetVitalityEffect(EffectDetrimental);
+	FStVitalityEffects vitalityData = UVitalitySystem::GetVitalityEffectByDetriment(EffectDetrimental);
 	vitalityData.uniqueId = GenerateUniqueId();
 	if (vitalityData.uniqueId < 1)
 	{
@@ -397,7 +444,6 @@ void UVitalityComponent::TickStamina()
 {
 	if (mIsSprinting && mCanSprint)
 	{
-		mStaminaValue -= mStaminaDrain;
 		if (mStaminaValue <= 0)
 		{
 			StopSprinting();
@@ -407,21 +453,18 @@ void UVitalityComponent::TickStamina()
 	}
 	else
 	{
-		if (GetEffe)
+		if (GetAllEffectsByDetriment(EEffectsDetrimental::TIRED).Num() == 0
+		 && GetAllEffectsByDetriment(EEffectsDetrimental::HUNGER).Num() == 0)
 		{			
 			// If stamina is fully regenerated, kill the timer. It's not needed anymore.
 			if (mStaminaValue >= mStaminaMax)
 			{
+				CancelTimer(mStaminaTimer);
 				mStaminaValue = mStaminaMax;
-				GetWorld()->GetTimerManager().PauseTimer(mStaminaTimer);	
 			}
 			else
 			{
-				// If stamina isn't on refresh/cooldown, regenerate
-				if (GetWorld()->GetTimerManager().IsTimerPaused(mStaminaCooldownTimer))
-				{
-					mStaminaValue += mStaminaRegen;
-				}
+				mStaminaValue += mStaminaRegen;
 			}
 		}
 	}
@@ -433,10 +476,25 @@ void UVitalityComponent::TickHealth()
 	{
 		if (mHealthValue < mHealthMax)
 		{
-			mHealthValue += mHealthRegen;
+			// Current calories percent
+			const float caloriesPercent = GetVitalityStat(EVitalityCategories::HUNGER);
+
+			if (caloriesPercent >= 0.5)
+			{
+				mHealthValue += mHealthRegen;	
+			}
+			else
+			{
+				// Health can regen up to twice the percentage of calories
+				if ( ((mHealthValue/mHealthMax)*0.5) < caloriesPercent )
+				{
+					mHealthValue += mHealthRegen;
+				}
+			}
 		}
 		else if (mHealthValue > mHealthMax)
 		{
+			CancelTimer(mHealthTimer);
 			mHealthValue = mHealthMax;
 		}
 	}
@@ -449,6 +507,7 @@ void UVitalityComponent::TickCalories()
 		mCaloriesValue -= mCaloriesDrainRest;
 		if (mCaloriesValue <= 0.f)
 		{
+			CancelTimer(mCaloriesTimer);
 			mCaloriesValue = 0.f;
 			ApplyEffect("hungry");
 		}
@@ -462,9 +521,10 @@ void UVitalityComponent::TickHydration()
 		mHydrationValue -= mHydrationDrainRest;
 		if (mHydrationValue <= 0.f)
 		{
-			mHydrationValue = 0.f;
-			ApplyEffect("thirsty");
 			mCanSprint = false;
+			mHydrationValue = 0.f;
+			CancelTimer(mHydrationTimer);
+			ApplyEffect("thirsty");
 		}
 	}
 }
@@ -513,6 +573,7 @@ void UVitalityComponent::TickEffects()
 		OnEffectModified.Broadcast(mEffectsAddQueue[i].uniqueId, true);
 		mEffectsAddQueue.RemoveAt(i);
 	}
+	
 	mEffectsMutex = false;
 }
 
@@ -522,30 +583,10 @@ void UVitalityComponent::ReloadFromSaveFile()
 		*GetName(), GetOwner()->HasAuthority()?TEXT("SERVER"):TEXT("CLIENT"));
 }
 
-void UVitalityComponent::TickManager()
-{
-	//TickStamina(); handled by mStaminaCooldownTimer
-	TickHealth();
-	TickCalories();
-	TickHydration();
-	TickEffects();
-}
-
 void UVitalityComponent::InitSubsystems(bool isCharacter)
 {
 
 	if (!GetOwner()->HasAuthority()) return;
-	
-	// Read settings and set members
-
-	const float managerTickRate = VitalityTickRate <= 0.f ? 1.f : VitalityTickRate;
-	GetWorld()->GetTimerManager().SetTimer(
-		mTickTimer, this, &UVitalityComponent::TickManager, managerTickRate, true);
-
-	GetWorld()->GetTimerManager().SetTimer(
-	mStaminaTimer, this, &UVitalityComponent::TickStamina, managerTickRate, true);
-	if (mStaminaTimer.IsValid())
-		GetWorld()->GetTimerManager().PauseTimer(mStaminaTimer);
 
 	// Character-Only Initialization
 	if (isCharacter)
@@ -580,6 +621,23 @@ void UVitalityComponent::InitSubsystems(bool isCharacter)
 	mCaloriesValue	= mCaloriesMax;
 	mHydrationValue = mHydrationMax;
 	mMagicValue		= mMagicMax;
+
+	// Set up timers
+
+	FTimerDelegate staminaDelegate; staminaDelegate.BindUObject(this, &UVitalityComponent::TickStamina);
+	InitializeTimer(mStaminaTimer, staminaDelegate);
+	
+	FTimerDelegate healthDelegate; healthDelegate.BindUObject(this, &UVitalityComponent::TickHealth);
+	InitializeTimer(mHealthTimer, healthDelegate);
+	
+	FTimerDelegate caloriesDelegate; caloriesDelegate.BindUObject(this, &UVitalityComponent::TickCalories);
+	InitializeTimer(mCaloriesTimer, caloriesDelegate);
+	
+	FTimerDelegate hydrationDelegate; hydrationDelegate.BindUObject(this, &UVitalityComponent::TickHydration);
+	InitializeTimer(mHydrationTimer, hydrationDelegate);
+	
+	FTimerDelegate effectsDelegate; effectsDelegate.BindUObject(this, &UVitalityComponent::TickEffects);
+	InitializeTimer(mEffectsTimer, effectsDelegate);
 	
 }
 
@@ -597,8 +655,6 @@ void UVitalityComponent::StartSprinting()
 	if (GetOwner()->HasAuthority())
 	{
 		mIsSprinting = true;
-		if (GetWorld()->GetTimerManager().IsTimerPaused(mStaminaTimer))
-			GetWorld()->GetTimerManager().UnPauseTimer(mStaminaTimer);
 		OnSprint.Broadcast(mIsSprinting);
 	}
 }
@@ -635,6 +691,30 @@ int UVitalityComponent::GenerateUniqueId()
 			randomNumber = tempNumber;
 	}
 	return randomNumber;
+}
+
+void UVitalityComponent::InitializeTimer(FTimerHandle& timerHandle, FTimerDelegate timerDelegate)
+{
+	if (!GetWorld()->GetTimerManager().TimerExists(timerHandle))
+	{
+		const float managerTickRate = VitalityTickRate <= 0.f ? 1.f : VitalityTickRate;
+		GetWorld()->GetTimerManager().SetTimer(timerHandle,	timerDelegate, 1*managerTickRate, true);
+		UE_LOG(LogTemp, Display, TEXT("%s(%s): Timer Handle '%s' has been created"),
+			*GetName(), GetOwner()->HasAuthority()?TEXT("SERVER"):TEXT("CLIENT"), *timerHandle.ToString());
+	}
+}
+
+void UVitalityComponent::CancelTimer(FTimerHandle& timerHandle)
+{
+	if (GetWorld()->GetTimerManager().TimerExists(timerHandle))
+	{
+		if (timerHandle.IsValid())
+		{
+			UE_LOG(LogTemp, Display, TEXT("%s(%s): Timer Handle '%s' has been INVALIDATED"),
+				*GetName(), GetOwner()->HasAuthority()?TEXT("SERVER"):TEXT("CLIENT"), *timerHandle.ToString());
+			timerHandle.Invalidate();
+		}
+	}
 }
 
 void UVitalityComponent::OnRep_CurrentEffects_Implementation()

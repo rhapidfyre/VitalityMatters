@@ -67,3 +67,14 @@ struct FStVitalityEffects : public FTableRowBase
 	// Used internally. Setting this value does nothing.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) int uniqueId = 0;
 };
+
+UCLASS()
+class VITALITYMATTERS_API UVitalitySystem : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+public:
+	UFUNCTION(BlueprintPure) static UDataTable* GetVitalityEffectsTable();
+	UFUNCTION(BlueprintPure) static FStVitalityEffects GetVitalityEffect(FName EffectName);
+	UFUNCTION(BlueprintPure) static FStVitalityEffects GetVitalityEffectByBenefit(EEffectsBeneficial EffectEnum);
+	UFUNCTION(BlueprintPure) static FStVitalityEffects GetVitalityEffectByDetriment(EEffectsDetrimental EffectEnum);
+};

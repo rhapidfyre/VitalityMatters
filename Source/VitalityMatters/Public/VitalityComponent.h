@@ -74,10 +74,11 @@ public: // public functions
 	 * @param VitalityStat The stat to be retrieved
 	 * @param StatValue The value (by ref) of the current stat
 	 * @param StatMax The maximum value (by ref) of the stat
-	 * @return The value of health, either as a float or a percentage.
+	 * @return The value of health, as a percentage
 	 */
 	UFUNCTION(BlueprintPure)
 	float GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax);
+	float GetVitalityStat(EVitalityCategories VitalityStat);
 
 	/** Server Only \n Sets the given stat to the given value.
 	 * Does nothing if run on the client. Straight logic, no math.
@@ -163,38 +164,28 @@ public: // public functions
 	UFUNCTION(BlueprintCallable)
 	void ToggleSprint(bool DoSprint = false);
 
-	FStVitalityEffects GetVitalityEffect(FName EffectName);
-
-	FStVitalityEffects GetVitalityEffect(EEffectsBeneficial EffectEnum);
-
-	FStVitalityEffects GetVitalityEffect(EEffectsDetrimental EffectEnum);
-
 	/** Returns the number of active counts of the requested benefit
 	 * @param BenefitEffect The benefit effect to look for
 	 * @return The number of times the benefit is in effect (at the time of request)
 	 */
-	UFUNCTION(BlueprintCallable)
-	int GetNumActiveBenefit(EEffectsBeneficial BenefitEffect);
+	UFUNCTION(BlueprintCallable) int GetNumActiveBenefit(EEffectsBeneficial BenefitEffect);
 
 	/** Returns the number of active counts of the requested detrimental effect
 	 * @param DetrimentEffect The detrimental effect to look for
 	 * @return The number of times the detrimental is in effect (at the time of request)
 	 */
-	UFUNCTION(BlueprintCallable)
-	int GetNumActiveDetriment(EEffectsDetrimental DetrimentEffect);
+	UFUNCTION(BlueprintCallable) int GetNumActiveDetriment(EEffectsDetrimental DetrimentEffect);
 
 	/** Returns a TArray of all active effects, both beneficial and detrimental.
 	 * @return All active benefits at time of request.
 	 */
-	UFUNCTION(BlueprintPure)
-	TArray<FStVitalityEffects> GetAllActiveEffects() { return mCurrentEffects; }
+	UFUNCTION(BlueprintPure) TArray<FStVitalityEffects> GetAllActiveEffects() { return mCurrentEffects; }
 
 	/** Returns a copy of the FStVitalityEffect data by given Unique Id. If there is no effect with the
 	 * requested UniqueId, or the UniqueId is invalid, this function will return empty table.
 	 * @return The data object found (or empty object)
 	 */
-	UFUNCTION(BlueprintPure)
-	FStVitalityEffects GetEffectByUniqueId(int UniqueId);
+	UFUNCTION(BlueprintPure) FStVitalityEffects GetEffectByUniqueId(int UniqueId);
 
 	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect);
 	
@@ -250,10 +241,14 @@ private: // private functions
 
 	UFUNCTION(Client, Reliable)
 	void OnRep_CurrentEffects();
+
+	void InitializeTimer(FTimerHandle& timerHandle, FTimerDelegate timerDelegate);
+
+	void CancelTimer(FTimerHandle& timerHandle);
 	
 public: // public members
 
-	// The tick rate of the vitality timers, in seconds.
+	// The tick rate of the vitality timers, in seconds. "0.25" means 4 times as fast, while "4" means 4x slower.
 	// Only set during initialization.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Settings")
 	float VitalityTickRate = 0.25;
@@ -333,9 +328,12 @@ private: // private members
 	TArray<FStVitalityEffects> mEffectsAddQueue;
 	TArray<int> mEffectsRemoveQueue;
 	
-	// Handles ticking of relevant ticks (effects, stamina, etc)
-	UPROPERTY() FTimerHandle mTickTimer;
-	UPROPERTY() FTimerHandle mStaminaTimer;
+	UPROPERTY() FTimerHandle mStaminaTimer;		// Handles ticking of stamina. Handled internally.
+	UPROPERTY() FTimerHandle mHealthTimer;
+	UPROPERTY() FTimerHandle mEffectsTimer;
+	UPROPERTY() FTimerHandle mCaloriesTimer;
+	UPROPERTY() FTimerHandle mHydrationTimer;
+	
 	// Handles stamina cooldown before regen can occur
 	UPROPERTY() FTimerHandle mStaminaCooldownTimer;
 
