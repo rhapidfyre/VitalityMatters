@@ -11,10 +11,14 @@ int UVitalityComponent::GetNumActiveBenefit(EEffectsBeneficial BenefitEffect)
 	if (BenefitEffect == EEffectsBeneficial::NONE)
 		return 0;
 	int benefitCount(0);
-	for (int i = 0; mCurrentEffects.Num(); i++)
+	// exp scope for good measure
 	{
-		if (mCurrentEffects[i].benefitEffect == BenefitEffect)
-			benefitCount++;
+		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
+		for (int i = 0; mCurrentEffects.Num(); i++)
+		{
+			if (mCurrentEffects[i].benefitEffect == BenefitEffect)
+				benefitCount++;
+		}
 	}
 	return benefitCount;
 }
@@ -24,10 +28,14 @@ int UVitalityComponent::GetNumActiveDetriment(EEffectsDetrimental DetrimentEffec
 	if (DetrimentEffect == EEffectsDetrimental::NONE)
 		return 0;
 	int detrimentCount(0);
-	for (int i = 0; mCurrentEffects.Num(); i++)
+	// exp scope for good measure
 	{
-		if (mCurrentEffects[i].detrimentEffect == DetrimentEffect)
-			detrimentCount++;
+		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
+		for (int i = 0; mCurrentEffects.Num(); i++)
+		{
+			if (mCurrentEffects[i].detrimentEffect == DetrimentEffect)
+				detrimentCount++;
+		}
 	}
 	return detrimentCount;
 }
@@ -207,10 +215,14 @@ bool UVitalityComponent::RemoveEffectByUniqueId(int UniqueId)
 {
 	if (UniqueId < 1)
 		return false;
-	for (int i = 0; i < mCurrentEffects.Num(); i++)
+	// exp scope for good measure
 	{
-		mEffectsRemoveQueue.Add(UniqueId);
-		return true;
+		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
+		for (int i = 0; i < mCurrentEffects.Num(); i++)
+		{
+			mEffectsRemoveQueue.Add(UniqueId);
+			return true;
+		}
 	}
 	return false;
 }
@@ -237,14 +249,20 @@ bool UVitalityComponent::ApplyEffect(FName EffectName, int StackCount)
 bool UVitalityComponent::RemoveEffect(FName EffectName, int RemoveCount)
 {
 	TArray<int> effectsRemoved;
-	for (int i = 0; i < mCurrentEffects.Num(); i++)
+	// exp scope for good measure
 	{
-		if (effectsRemoved.Num() >= RemoveCount)
-			break;
-		if (mCurrentEffects[i].properName == EffectName)
+		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
+		for (int i = 0; i < mCurrentEffects.Num(); i++)
 		{
-			effectsRemoved.Add(mCurrentEffects[i].uniqueId);
-			mEffectsRemoveQueue.Add(mCurrentEffects[i].uniqueId);
+			if (effectsRemoved.Num() >= RemoveCount)
+				break;
+		
+			if (mCurrentEffects[i].properName == EffectName)
+			{
+				effectsRemoved.Add(mCurrentEffects[i].uniqueId);
+				mEffectsRemoveQueue.Add(mCurrentEffects[i].uniqueId);
+			}
+		
 		}
 	}
 	return (effectsRemoved.Num() > 0);
@@ -266,13 +284,18 @@ bool UVitalityComponent::ApplyEffectBeneficial(EEffectsBeneficial EffectBenefici
 	}
 	if (vitalityData.benefitEffect != EEffectsBeneficial::NONE)
 	{
-		int effectStackCount(1);
-		for (int i = 0; i < mCurrentEffects.Num(); i++)
+		//exp scope for good measure
 		{
-			if (mCurrentEffects[i].benefitEffect == EffectBeneficial)
-				effectStackCount += 1;
+			FRWScopeLock ReadLock(mMutexLock, SLT_Write);
+			int effectStackCount(1);
+			for (int i = 0; i < mCurrentEffects.Num(); i++)
+			{
+				if (mCurrentEffects[i].benefitEffect == EffectBeneficial)
+					effectStackCount += 1;
+			}
+			for (int i = 0; i < StackCount; i++)
+				mEffectsAddQueue.Add(vitalityData);
 		}
-		mEffectsAddQueue.Add(vitalityData);
 	}
 	return false;
 }
@@ -285,15 +308,20 @@ bool UVitalityComponent::RevokeEffectBeneficial(EEffectsBeneficial EffectBenefic
 
 	// Removes the given effect, StackCount number of times
 	TArray<int> removedUniqueIds;
-	for (int i = 0; i < mCurrentEffects.Num(); i++)
+	
+	// Explicit scope for good measure
 	{
-		if (removedUniqueIds.Num() >= StackCount)
-			break;
-		// If this effect matches the benefit to revoke, remove it
-		if (mCurrentEffects[i].benefitEffect == EffectBeneficial)
+		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
+		for (int i = 0; i < mCurrentEffects.Num(); i++)
 		{
-			removedUniqueIds.Add(mCurrentEffects[i].uniqueId);
-			mEffectsRemoveQueue.Add(mCurrentEffects[i].uniqueId);
+			if (removedUniqueIds.Num() >= StackCount)
+				break;
+			// If this effect matches the benefit to revoke, remove it
+			if (mCurrentEffects[i].benefitEffect == EffectBeneficial)
+			{
+				removedUniqueIds.Add(mCurrentEffects[i].uniqueId);
+				mEffectsRemoveQueue.Add(mCurrentEffects[i].uniqueId);
+			}
 		}
 	}
 	
@@ -319,18 +347,28 @@ bool UVitalityComponent::ApplyEffectDetrimental(EEffectsDetrimental EffectDetrim
 	}
 	if (vitalityData.detrimentEffect != EEffectsDetrimental::NONE)
 	{
-		int effectStackCount(1);
-		for (int i = 0; i < mCurrentEffects.Num(); i++)
+		if (mCurrentEffects.Num() > 0)
 		{
-			if (mCurrentEffects[i].detrimentEffect == EffectDetrimental)
-				effectStackCount += 1;
-		}
-		mEffectsAddQueue.Add(vitalityData);
+			int effectStackCount(1);
 
-		// If this effect disables sprinting and sprint is enabled, disable it.
-		if (vitalityData.disableSprinting && mCanSprint)
-		{
-			mCanSprint = false;
+			//exp scope
+			{
+				FRWScopeLock ReadLock(mMutexLock, SLT_ReadOnly);
+				for (int i = 0; i < mCurrentEffects.Num(); i++)
+				{
+					if (mCurrentEffects[i].detrimentEffect == EffectDetrimental)
+						effectStackCount += 1;
+				}
+			}
+
+			for (int i = 0; i < StackCount; i++)
+				mEffectsAddQueue.Add(vitalityData);
+
+			// If this effect disables sprinting and sprint is enabled, disable it.
+			if (vitalityData.disableSprinting && mCanSprint && effectStackCount > 0)
+			{
+				mCanSprint = false;
+			}
 		}
 	}
 	return false;
@@ -342,17 +380,23 @@ bool UVitalityComponent::RevokeEffectDetrimental(EEffectsDetrimental EffectDetri
 	if (EffectDetrimental == EEffectsDetrimental::NONE || StackCount < 1)
 		return false;
 
-	// Remove the effect the given number of times, or until all occurrences are gone. Whichever occurs first.
-	TArray<int> removedUniqueIds;
-	for (int i = 0; i < mCurrentEffects.Num(); i++)
+
+	// Explicit Scope for good measure
 	{
-		if (removedUniqueIds.Num() >= StackCount)
-			break;
+		// Remove the effect the given number of times, or until all occurrences are gone. Whichever occurs first.
+		TArray<int> removedUniqueIds;
+		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
 		
-		if (mCurrentEffects[i].detrimentEffect == EffectDetrimental)
+		for (int i = 0; i < mCurrentEffects.Num(); i++)
 		{
-			removedUniqueIds.Add(mCurrentEffects[i].uniqueId);
-			mEffectsRemoveQueue.Add(mCurrentEffects[i].uniqueId);
+			if (removedUniqueIds.Num() >= StackCount)
+				break;
+		
+			if (mCurrentEffects[i].detrimentEffect == EffectDetrimental)
+			{
+				removedUniqueIds.Add(mCurrentEffects[i].uniqueId);
+				mEffectsRemoveQueue.Add(mCurrentEffects[i].uniqueId);
+			}
 		}
 	}
 
@@ -364,12 +408,16 @@ bool UVitalityComponent::RevokeEffectDetrimental(EEffectsDetrimental EffectDetri
 	if (!mCanSprint)
 	{
 		bool canSprint = true;
-		for (int i = 0; i < mCurrentEffects.Num(); i++)
+		if (mCurrentEffects.Num() > 0)
 		{
-			if (mCurrentEffects[i].disableSprinting)
+			FRWScopeLock ReadLock(mMutexLock, SLT_Write);
+			for (int i = 0; i < mCurrentEffects.Num(); i++)
 			{
-				canSprint = false;
-				break;
+				if (mCurrentEffects[i].disableSprinting)
+				{
+					canSprint = false;
+					break;
+				}
 			}
 		}
 		mCanSprint = canSprint;
@@ -410,10 +458,14 @@ FStVitalityEffects UVitalityComponent::GetEffectByUniqueId(int UniqueId)
 {
 	if (UniqueId > 0)
 	{
-		for (int i = 0; mCurrentEffects.Num(); i++)
+		FRWScopeLock ReadLock(mMutexLock, SLT_ReadOnly);
+		// Simple needle in a haystack search
+		for (FStVitalityEffects vEffect : mCurrentEffects)
 		{
-			if (mCurrentEffects[i].uniqueId == UniqueId)
-				return mCurrentEffects[i];
+			if (vEffect.uniqueId == UniqueId)
+			{
+				return vEffect;
+			}
 		}
 	}
 	return {};
@@ -421,12 +473,84 @@ FStVitalityEffects UVitalityComponent::GetEffectByUniqueId(int UniqueId)
 
 TArray<FStVitalityEffects> UVitalityComponent::GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect)
 {
+	if (DetrimentEffect != EEffectsDetrimental::NONE)
+	{
+		FRWScopeLock ReadLock(mMutexLock, SLT_ReadOnly);
+		// O(n) needle-in-a-haystack
+		TArray<FStVitalityEffects> detrimentalEffects;
+		for (FStVitalityEffects vEffect : mCurrentEffects)
+		{
+			if (vEffect.detrimentEffect != EEffectsDetrimental::NONE)
+			{
+				detrimentalEffects.Add(vEffect);
+			}
+		}
+		return detrimentalEffects;
+	}
 	return {};
 }
 
 TArray<FStVitalityEffects> UVitalityComponent::GetAllEffectsByBenefit(EEffectsBeneficial BenefitEffect)
 {
+	if (BenefitEffect != EEffectsBeneficial::NONE)
+	{
+		FRWScopeLock ReadLock(mMutexLock, SLT_ReadOnly);
+		// O(n) needle-in-a-haystack
+		TArray<FStVitalityEffects> detrimentalEffects;
+		for (FStVitalityEffects vEffect : mCurrentEffects)
+		{
+			if (vEffect.detrimentEffect != EEffectsDetrimental::NONE)
+			{
+				detrimentalEffects.Add(vEffect);
+			}
+		}
+		return detrimentalEffects;
+	}
 	return {};
+}
+
+bool UVitalityComponent::IsEffectActive(FName EffectName)
+{
+	if (mCurrentEffects.Num() < 1)
+		return false;
+	
+	// Does the requested effect exist?
+	FStVitalityEffects vData = UVitalitySystem::GetVitalityEffect(EffectName);
+	if (!UVitalitySystem::IsVitalityDataValid(vData))
+		return false;
+	
+	// explicit scope
+	{
+		FRWScopeLock ReadLock(mMutexLock, SLT_ReadOnly);
+		for (int i = 0; i < mCurrentEffects.Num(); i++)
+		{
+			// It was validated before it was added to array. There is no need to validate.
+			FStVitalityEffects vTemp = mCurrentEffects[i];
+			if (vTemp.properName == EffectName)
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
+bool UVitalityComponent::IsEffectActive(EEffectsBeneficial EffectEnum)
+{
+	// Does the requested effect exist?
+	FStVitalityEffects vData = UVitalitySystem::GetVitalityEffectByBenefit(EffectEnum);
+	if (!UVitalitySystem::IsVitalityDataValid(vData))
+		return false;
+	return IsEffectActive(vData.properName);
+}
+
+bool UVitalityComponent::IsEffectActive(EEffectsDetrimental EffectEnum)
+{
+	FStVitalityEffects vData = UVitalitySystem::GetVitalityEffectByDetriment(EffectEnum);
+	if (!UVitalitySystem::IsVitalityDataValid(vData))
+		return false;
+	return IsEffectActive(vData.properName);
 }
 
 // Called when the game starts
@@ -531,50 +655,58 @@ void UVitalityComponent::TickHydration()
 
 void UVitalityComponent::TickEffects()
 {
-	if (mEffectsMutex) return;
-	mEffectsMutex = true;
-	
-	// Remove any effects that are pending removal
-	for (int i = mEffectsRemoveQueue.Num() - 1; i >= 0; i--)
-	{
-		for (int j = 0; j < mCurrentEffects.Num(); j++)
-		{
-			if (mCurrentEffects[j].uniqueId == mEffectsRemoveQueue[i])
-			{
-				mCurrentEffects.RemoveAt(j);
-				OnEffectModified.Broadcast(mEffectsRemoveQueue[i], false);
-				break;
-			}
-		}
-		mEffectsRemoveQueue.RemoveAt(i);
-	}
-	
 	// Perform any logic effects need done per tick
-	for (int i = 0; i < mCurrentEffects.Num(); i++)
+	if (mCurrentEffects.Num() > 0)
 	{
-		if (mCurrentEffects.IsValidIndex(i))
+		FRWScopeLock WriteLock(mMutexLock, SLT_ReadOnly);
+		for (int i = 0; i < mCurrentEffects.Num(); i++)
 		{
-			FStVitalityEffects vitalityData = mCurrentEffects[i];
-			if (!vitalityData.isPersistent)
+			if (mCurrentEffects.IsValidIndex(i))
 			{
-				mCurrentEffects[i].effectTicks--;
-				if (mCurrentEffects[i].effectTicks < 1)
+				const FStVitalityEffects vitalityData = mCurrentEffects[i];
+				if (!vitalityData.isPersistent)
 				{
-					RemoveEffectAtIndex(i);
+					mCurrentEffects[i].effectTicks--;
+					if (mCurrentEffects[i].effectTicks < 1)
+					{
+						RemoveEffectAtIndex(i);
+					}
 				}
 			}
 		}
 	}
 	
-	// Add any affects that need to be added
-	for (int i = mEffectsAddQueue.Num() - 1; i >= 0; i--)
+	// Remove any effects that are pending removal
+	if (mEffectsRemoveQueue.Num() > 0)
 	{
-		mCurrentEffects.Add( mEffectsAddQueue[i] );
-		OnEffectModified.Broadcast(mEffectsAddQueue[i].uniqueId, true);
-		mEffectsAddQueue.RemoveAt(i);
+		FRWScopeLock WriteLock(mMutexLock, SLT_Write);
+		for (int i = mEffectsRemoveQueue.Num() - 1; i >= 0; i--)
+		{
+			for (int j = 0; j < mCurrentEffects.Num(); j++)
+			{
+				if (mCurrentEffects[j].uniqueId == mEffectsRemoveQueue[i])
+				{
+					mCurrentEffects.RemoveAt(j);
+					OnEffectModified.Broadcast(mEffectsRemoveQueue[i], false);
+					break;
+				}
+			}
+			mEffectsRemoveQueue.RemoveAt(i);
+		}
 	}
 	
-	mEffectsMutex = false;
+	// Add any affects that need to be added
+	if (mEffectsAddQueue.Num() > 0)
+	{
+		FRWScopeLock WriteLock(mMutexLock, SLT_Write);
+		for (int i = mEffectsAddQueue.Num() - 1; i >= 0; i--)
+		{
+			mCurrentEffects.Add( mEffectsAddQueue[i] );
+			OnEffectModified.Broadcast(mEffectsAddQueue[i].uniqueId, true);
+			mEffectsAddQueue.RemoveAt(i);
+		}
+	}
+	
 }
 
 void UVitalityComponent::ReloadFromSaveFile()
@@ -675,20 +807,26 @@ void UVitalityComponent::Server_ToggleSprint_Implementation(bool DoSprint)
 int UVitalityComponent::GenerateUniqueId()
 {
 	int randomNumber(-1);
+	
 	while (randomNumber < 1)
 	{
 		bool idExists = false;
-		int tempNumber = FMath::RandRange(1,INT_MAX);
-		for (int i = 0; i < mCurrentEffects.Num(); i++)
+		const int tempNumber = FMath::RandRange(1,INT_MAX);
+		FRWScopeLock ReadLock(mMutexLock, SLT_ReadOnly);
+		for (const FStVitalityEffects vEffect : mCurrentEffects)
 		{
-			if (mCurrentEffects[i].uniqueId == tempNumber)
+			if (vEffect.uniqueId == tempNumber)
 			{
 				idExists = true;
 				break;
 			}
 		}
+		// If unique, assign and break loop
 		if (!idExists)
+		{
 			randomNumber = tempNumber;
+			break;
+		}
 	}
 	return randomNumber;
 }

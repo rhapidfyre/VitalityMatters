@@ -77,4 +77,6 @@ public:
 	UFUNCTION(BlueprintPure) static FStVitalityEffects GetVitalityEffect(FName EffectName);
 	UFUNCTION(BlueprintPure) static FStVitalityEffects GetVitalityEffectByBenefit(EEffectsBeneficial EffectEnum);
 	UFUNCTION(BlueprintPure) static FStVitalityEffects GetVitalityEffectByDetriment(EEffectsDetrimental EffectEnum);
+	UFUNCTION(BlueprintPure) static bool IsVitalityNameValid(FName EffectName);
+	UFUNCTION(BlueprintPure) static bool IsVitalityDataValid(FStVitalityEffects& VitalityEffect);
 };

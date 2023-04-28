@@ -191,6 +191,11 @@ public: // public functions
 	
 	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByBenefit(EEffectsBeneficial BenefitEffect);
 	
+
+	UFUNCTION(BlueprintPure)
+	bool IsEffectActive(FName EffectName);
+	bool IsEffectActive(EEffectsBeneficial EffectEnum);
+	bool IsEffectActive(EEffectsDetrimental EffectEnum);
 	
 protected: // protected functions
 
@@ -324,6 +329,9 @@ public: // public members
 
 private: // private members
 
+	// Mutex Lock for thread safe operation
+	FRWLock mMutexLock;
+
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CurrentEffects) TArray<FStVitalityEffects> mCurrentEffects;
 	TArray<FStVitalityEffects> mEffectsAddQueue;
 	TArray<int> mEffectsRemoveQueue;
@@ -336,17 +344,14 @@ private: // private members
 	
 	// Handles stamina cooldown before regen can occur
 	UPROPERTY() FTimerHandle mStaminaCooldownTimer;
-
-	// Mutex Locks
-	bool mEffectsMutex = false;
 	
 	// Stamina Subsystem
 	UPROPERTY(Replicated) bool mIsSprinting = false;	// True if actively sprinting
 	float mStaminaDrain = 1.f;							// Drain Rate when Sprinting
 	float mStaminaRegen = 1.f;							// Regen Rate
 	UPROPERTY(Replicated) float mStaminaValue = 1.f;	// Current Stamina
-	UPROPERTY(Replicated) float mStaminaMax   = 1.f;  // Maximum Stamina
-	float mSprintSpeed = 1.2; // Percentage of base speed increase when sprinting
+	UPROPERTY(Replicated) float mStaminaMax   = 1.f;    // Maximum Stamina
+	float mSprintSpeed  = 1.2; // Percentage of base speed increase when sprinting
 	bool mCanSprint		= true;
 
 	// Health Subsystem

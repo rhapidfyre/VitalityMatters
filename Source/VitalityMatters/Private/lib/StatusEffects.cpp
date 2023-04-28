@@ -45,3 +45,17 @@ FStVitalityEffects UVitalitySystem::GetVitalityEffectByDetriment(EEffectsDetrime
 	}
 	return FStVitalityEffects();
 }
+
+bool UVitalitySystem::IsVitalityNameValid(FName EffectName)
+{
+	const FStVitalityEffects vEffect = GetVitalityEffect(EffectName);
+	return (
+		   vEffect.benefitEffect   != EEffectsBeneficial::NONE
+		|| vEffect.detrimentEffect != EEffectsDetrimental::NONE
+		);
+}
+
+bool UVitalitySystem::IsVitalityDataValid(FStVitalityEffects& VitalityEffect)
+{
+	return IsVitalityNameValid(VitalityEffect.properName);
+}
