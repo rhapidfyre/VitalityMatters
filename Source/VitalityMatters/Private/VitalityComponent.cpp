@@ -52,7 +52,6 @@ void UVitalityComponent::OnComponentCreated()
 	RegisterComponent();
 }
 
-
 float UVitalityComponent::DamageHealth(AActor* DamageActor, float DamageTaken)
 {
 	const float oldHealth = mHealthValue;
