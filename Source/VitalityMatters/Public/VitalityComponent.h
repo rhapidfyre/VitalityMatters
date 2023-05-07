@@ -64,7 +64,8 @@ public: // public functions
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnEffectModified OnEffectModified;
 
 	/** An alternative to 'ModifyVitalityStat(HEALTH)'. Calls appropriate
-	 * events and handles death events as expected during normal gameplay.
+	 * events and handles death events as expected during normal gameplay, whereas
+	 * ModifyVitalityStat() only manages the internal values without notifiers.
 	 * @param DamageActor The AActor who dealt the damage. nullptr is treated as world damage.
 	 * @param DamageTaken The amount of damage taken. Defaults to zero float.
 	 * @return Returns the new health value. Negative return indicates failure.
@@ -97,7 +98,8 @@ public: // public functions
 	float SetVitalityStat(EVitalityCategories VitalityStat, float NewValue = 100.f);
 
 	/** Server Only\n Modifies the current value of the given stat, adding or
-	 * subtracting value to it, respective of the signed float given.
+	 * subtracting value to it, respective of the signed float given. Does NOT trigger
+	 * events. Use DamageHealth() or other similar functions to notify delegates.
 	 * @param VitalityStat The enum to modify. Defaults to health.
 	 * @param AddValue The value to add/remove. Sign sensitive. Defaults to 0.f
 	 * @return The new stat value (should be input value). Negative indicates error.
@@ -260,10 +262,16 @@ private: // private functions
 	void CancelTimer(FTimerHandle& timerHandle);
 
 	/** Sent to all clients from server when the DamageHealth() function runs
-	 * successfully. Used to trigger clientside events.
+	 * successfully, but the character survives the damage. Used to trigger clientside events.
 	 * May arrive prior to the mHealthValue actually being changed.
 	 */
 	UFUNCTION(Client, Unreliable) void Multicast_DamageTaken(float DamageTaken = 0.f);
+	
+	/** Sent to all clients from server when the DamageHealth() function runs
+	 * successfully, and the character dies as a result. Used to trigger clientside events.
+	 * May arrive prior to the mHealthValue actually being changed.
+	 */
+	UFUNCTION(Client, Unreliable) void Multicast_VitalityDeath();
 	
 public: // public members
 

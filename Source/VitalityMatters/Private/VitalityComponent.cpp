@@ -56,12 +56,22 @@ void UVitalityComponent::OnComponentCreated()
 float UVitalityComponent::DamageHealth(AActor* DamageActor, float DamageTaken)
 {
 	const float oldHealth = mHealthValue;
-	if (mHealthValue < oldHealth)
+	const float NewDamage = 0.f - abs(DamageTaken); // ensures a negative
+	const float newHealth = ModifyVitalityStat(EVitalityCategories::HEALTH, NewDamage);
+	if (newHealth < oldHealth)
 	{
-		OnDamageTaken.Broadcast(DamageActor, DamageTaken);
+		if (newHealth <= 0.f && oldHealth > 0.f)
+		{
+			OnDeath.Broadcast(DamageActor);
+			Multicast_VitalityDeath();
+		}
+		else
+		{
+			OnDamageTaken.Broadcast(DamageActor, NewDamage);
+			Multicast_DamageTaken(NewDamage);
+		}
 	}
-	Multicast_DamageTaken(DamageTaken);
-	return ModifyVitalityStat(EVitalityCategories::HEALTH, DamageTaken);
+	return newHealth;
 }
 
 float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax)
@@ -120,7 +130,10 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 	switch(VitalityStat)
 	{
 	case EVitalityCategories::HEALTH:
+		
 		mHealthValue = NewValue;
+		
+		// Is Character Dead?
 		if (mHealthValue <= 0.f)
 		{
 			if (GetAllEffectsByDetriment(EEffectsDetrimental::DEAD).Num() == 0)
@@ -128,12 +141,20 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 				mEffectsAddQueue.Add( UVitalitySystem::GetVitalityEffect("dead") );
 			}
 			mHealthValue = 0.f;
+			return 0.f;
 		}
-		if (mHealthValue < mHealthMax && !mHealthTimer.IsValid())
+
+		// Is player's health below maximum?
+		if (mHealthValue < mHealthMax)
 		{
-			FTimerDelegate healthDelegate; healthDelegate.BindUObject(this, &UVitalityComponent::TickHealth);
-			InitializeTimer(mHealthTimer, healthDelegate);
+			// Regen Timer is inactive/invalid
+			if (!mHealthTimer.IsValid())
+			{
+				FTimerDelegate healthDelegate; healthDelegate.BindUObject(this, &UVitalityComponent::TickHealth);
+				InitializeTimer(mHealthTimer, healthDelegate);
+			}
 		}
+		
 		return mHealthValue;
 		
 	case EVitalityCategories::STAMINA:
@@ -863,6 +884,11 @@ void UVitalityComponent::CancelTimer(FTimerHandle& timerHandle)
 			timerHandle.Invalidate();
 		}
 	}
+}
+
+void UVitalityComponent::Multicast_VitalityDeath_Implementation()
+{
+	OnDeath.Broadcast(nullptr);
 }
 
 void UVitalityComponent::Multicast_DamageTaken_Implementation(float DamageTaken)
