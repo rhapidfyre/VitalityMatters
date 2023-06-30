@@ -62,7 +62,7 @@ public: // public functions
 	// SERVER - Called whenever an effect is added or removed.
 	// CLIENT ONLY - Always called with Unique ID zero when the effects array is replicated
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnEffectModified OnEffectModified;
-
+	
 	/** An alternative to 'ModifyVitalityStat(HEALTH)'. Calls appropriate
 	 * events and handles death events as expected during normal gameplay, whereas
 	 * ModifyVitalityStat() only manages the internal values without notifiers.
@@ -72,6 +72,26 @@ public: // public functions
 	 */
 	UFUNCTION(BlueprintCallable)
 	float DamageHealth(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
+
+	/** An alternative to 'ModifyVitalityStat(STAMINA)'. Calls appropriate
+	 * events and handles death events as expected during normal gameplay, whereas
+	 * ModifyVitalityStat() only manages the internal values without notifiers.
+	 * @param DamageActor The AActor who dealt the damage. nullptr is treated as world damage.
+	 * @param DamageTaken The amount of damage taken. Defaults to zero float.
+	 * @return Returns the new health value. Negative return indicates failure.
+	 */
+	UFUNCTION(BlueprintCallable)
+	float ConsumeStamina(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
+
+	/** An alternative to 'ModifyVitalityStat(HEALTH)'. Calls appropriate
+	 * events and handles death events as expected during normal gameplay, whereas
+	 * ModifyVitalityStat() only manages the internal values without notifiers.
+	 * @param DamageActor The AActor who dealt the damage. nullptr is treated as world damage.
+	 * @param DamageTaken The amount of damage taken. Defaults to zero float.
+	 * @return Returns the new health value. Negative return indicates failure.
+	 */
+	UFUNCTION(BlueprintCallable)
+	float ConsumeMagic(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
 	
 	/** Client or Server\n Checks if mIsSprinting is true (sprint mechanic on)
 	 * @return True if sprinting is active, false if it is not.

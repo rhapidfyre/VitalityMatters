@@ -73,6 +73,20 @@ float UVitalityComponent::DamageHealth(AActor* DamageActor, float DamageTaken)
 	return newHealth;
 }
 
+float UVitalityComponent::ConsumeStamina(AActor* DamageActor, float DamageTaken)
+{
+	const float NewDamage = 0.f - abs(DamageTaken); // ensures a negative
+	const float newValue = ModifyVitalityStat(EVitalityCategories::STAMINA, NewDamage);
+	return newValue;
+}
+
+float UVitalityComponent::ConsumeMagic(AActor* DamageActor, float DamageTaken)
+{
+	const float NewDamage = 0.f - abs(DamageTaken); // ensures a negative
+	const float newValue = ModifyVitalityStat(EVitalityCategories::MAGIC, NewDamage);
+	return newValue;
+}
+
 float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax)
 {
 	
@@ -913,14 +927,14 @@ void UVitalityComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> & 
 	// These vars only have value to the actor it affects and no-one else.
 	DOREPLIFETIME_CONDITION(UVitalityComponent, mIsSprinting,		COND_OwnerOnly);
 	
-	DOREPLIFETIME_CONDITION(UVitalityComponent, mStaminaValue,		COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UVitalityComponent, mStaminaMax,		COND_OwnerOnly);
+	DOREPLIFETIME(UVitalityComponent, mStaminaValue);
+	DOREPLIFETIME(UVitalityComponent, mStaminaMax);
 	
-	DOREPLIFETIME_CONDITION(UVitalityComponent, mHealthValue,		COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UVitalityComponent, mHealthMax,			COND_OwnerOnly);
+	DOREPLIFETIME(UVitalityComponent, mHealthValue);
+	DOREPLIFETIME(UVitalityComponent, mHealthMax);
 	
-	DOREPLIFETIME_CONDITION(UVitalityComponent, mMagicValue,		COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UVitalityComponent, mMagicMax,			COND_OwnerOnly);
+	DOREPLIFETIME(UVitalityComponent, mMagicValue);
+	DOREPLIFETIME(UVitalityComponent, mMagicMax);
 	
 	DOREPLIFETIME_CONDITION(UVitalityComponent, mCaloriesValue,		COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UVitalityComponent, mCaloriesMax,		COND_OwnerOnly);
