@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "lib/StatusEffects.h"
+#include "lib/VitalityData.h"
 #include "lib/VitalityEnums.h"
 
 #include "VitalityComponent.generated.h"
@@ -63,35 +64,9 @@ public: // public functions
 	// CLIENT ONLY - Always called with Unique ID zero when the effects array is replicated
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnEffectModified OnEffectModified;
 	
-	/** An alternative to 'ModifyVitalityStat(HEALTH)'. Calls appropriate
-	 * events and handles death events as expected during normal gameplay, whereas
-	 * ModifyVitalityStat() only manages the internal values without notifiers.
-	 * @param DamageActor The AActor who dealt the damage. nullptr is treated as world damage.
-	 * @param DamageTaken The amount of damage taken. Defaults to zero float.
-	 * @return Returns the new health value. Negative return indicates failure.
-	 */
-	UFUNCTION(BlueprintCallable)
-	float DamageHealth(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
-
-	/** An alternative to 'ModifyVitalityStat(STAMINA)'. Calls appropriate
-	 * events and handles death events as expected during normal gameplay, whereas
-	 * ModifyVitalityStat() only manages the internal values without notifiers.
-	 * @param DamageActor The AActor who dealt the damage. nullptr is treated as world damage.
-	 * @param DamageTaken The amount of damage taken. Defaults to zero float.
-	 * @return Returns the new health value. Negative return indicates failure.
-	 */
-	UFUNCTION(BlueprintCallable)
-	float ConsumeStamina(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
-
-	/** An alternative to 'ModifyVitalityStat(HEALTH)'. Calls appropriate
-	 * events and handles death events as expected during normal gameplay, whereas
-	 * ModifyVitalityStat() only manages the internal values without notifiers.
-	 * @param DamageActor The AActor who dealt the damage. nullptr is treated as world damage.
-	 * @param DamageTaken The amount of damage taken. Defaults to zero float.
-	 * @return Returns the new health value. Negative return indicates failure.
-	 */
-	UFUNCTION(BlueprintCallable)
-	float ConsumeMagic(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
+	UFUNCTION(BlueprintCallable) float DamageHealth(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
+	UFUNCTION(BlueprintCallable) float ConsumeStamina(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
+	UFUNCTION(BlueprintCallable) float ConsumeMagic(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
 	
 	/** Client or Server\n Checks if mIsSprinting is true (sprint mechanic on)
 	 * @return True if sprinting is active, false if it is not.
@@ -99,129 +74,39 @@ public: // public functions
 	UFUNCTION(BlueprintPure)
 	bool IsSprinting() const { return mIsSprinting; }
 
-	/** Client or Server\n Gets the request vitality enum value.
-	 * @param VitalityStat The stat to be retrieved
-	 * @param StatValue The value (by ref) of the current stat
-	 * @param StatMax The maximum value (by ref) of the stat
-	 * @return The value of health, as a percentage
-	 */
-	UFUNCTION(BlueprintPure)
-	float GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax);
+	UFUNCTION(BlueprintPure) int Strength() const { return _Stats.Strength; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int Agility() const { return _Stats.Agility; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int Fortitude() const { return _Stats.Fortitude; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int Intellect() const { return _Stats.Intellect; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int Astuteness() const { return _Stats.Astuteness; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int Charisma() const { return _Stats.Charisma; } // Quick Accessor
+
+	UFUNCTION(BlueprintPure) int GetResistance(EDamageType DamageEnum = EDamageType::ADMIN) const;
+	UFUNCTION(BlueprintPure) int GetDamageBonus(EDamageType DamageEnum = EDamageType::ADMIN) const;
+	
+	UFUNCTION(BlueprintPure) float GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax);
 	float GetVitalityStat(EVitalityCategories VitalityStat);
-
-	/** Server Only \n Sets the given stat to the given value.
-	 * Does nothing if run on the client. Straight logic, no math.
-	 * @param VitalityStat The enum to modify. Defaults to health.
-	 * @param NewValue The new value of the stat. Defaults to 100.f
-	 */
-	UFUNCTION(BlueprintCallable)
-	float SetVitalityStat(EVitalityCategories VitalityStat, float NewValue = 100.f);
-
-	/** Server Only\n Modifies the current value of the given stat, adding or
-	 * subtracting value to it, respective of the signed float given. Does NOT trigger
-	 * events. Use DamageHealth() or other similar functions to notify delegates.
-	 * @param VitalityStat The enum to modify. Defaults to health.
-	 * @param AddValue The value to add/remove. Sign sensitive. Defaults to 0.f
-	 * @return The new stat value (should be input value). Negative indicates error.
-	 */
-	UFUNCTION(BlueprintCallable)
-	float ModifyVitalityStat(EVitalityCategories VitalityStat, float AddValue = 0.f);
-
-	/** Removes the effect with the given Unique ID number.
-	 * @param UniqueId The unique ID to remove. Defaults to 0. Fails if < 1.
-	 * @return True on successful removal. False on failure, or if effect did not exist.
-	 */
-	UFUNCTION(BlueprintCallable)
-	bool RemoveEffectByUniqueId(int UniqueId = 0);
-	
-	/** Server Only\n Adds the requested benefit.
-	 * @param EffectName The table row name to apply.
-	 * @param StackCount The number of times to apply the effect
-	 * @return True if the effect was added. False on failure.
-	 */
-	UFUNCTION(BlueprintCallable)
-	bool ApplyEffect(FName EffectName, int StackCount = 1);
-
-	/** Server Only\n Removes the requested benefit.
-	 * @param EffectName The table row name to revoke.
-	 * @param RemoveCount The number of times to remove the effect
-	 * @return True if the effect was removed at least once. False on failure.
-	 */
+	UFUNCTION(BlueprintCallable) float SetVitalityStat(EVitalityCategories VitalityStat, float NewValue = 100.f);
+	UFUNCTION(BlueprintCallable) float ModifyVitalityStat(EVitalityCategories VitalityStat, float AddValue = 0.f);
+	UFUNCTION(BlueprintCallable) bool RemoveEffectByUniqueId(int UniqueId = 0);
+	UFUNCTION(BlueprintCallable) bool ApplyEffect(FName EffectName, int StackCount = 1);
 	bool RemoveEffect(FName EffectName, int RemoveCount);
-
-	/** Server Only\n Adds the requested benefit enum.
-	 * @param EffectBeneficial The num to apply/revoke.
-	 * @param StackCount The number of times to apply the effect
-	 * @return True if the effect was added. False on failure.
-	 */
-	UFUNCTION(BlueprintCallable)
-	bool ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
-
-	/** Server Only\n Removes the requested benefit enum.
-	 * @param EffectBeneficial The num to apply/revoke.
-	 * @param StackCount The number of identical effects to remove
-	 * @return True if the effect was removed. False on failure.
-	 */
-	UFUNCTION(BlueprintCallable)
-	bool RevokeEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
-
-	/** Server Only\n Adds the requested detriment enum.
-	 * @param EffectDetrimental The num to apply/revoke.
-	 * @param StackCount The number of times to apply the effect
-	 * @return True if the effect was added. False on failure.
-	 */
-	UFUNCTION(BlueprintCallable)
-	bool ApplyEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount = 1);
-
-	/** Server Only\n Removes the requested detriment enum.
-	 * @param EffectDetrimental The num to apply/revoke.
-	 * @param StackCount The number of identical effects to remove
-	 * @return True if the effect was removed. False on failure.
-	 */
-	UFUNCTION(BlueprintCallable)
-	bool RevokeEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount = 1);
-
-	/** Server Only\n Removes the effect at the given index.
-	 * @param IndexNumber The index number of the current effect to remove
-	 * @return True if the effect was removed. False on failure.
-	 */
-	UFUNCTION(BlueprintCallable)
-	bool RemoveEffectAtIndex(int IndexNumber = 0);
-	
-	/** Server or Client\n Starts or Stops the Sprinting Mechanic.
-	 * @param DoSprint If true, attempts to start sprinting. False stops.
-	 */
-	UFUNCTION(BlueprintCallable)
-	void ToggleSprint(bool DoSprint = false);
-
-	/** Returns the number of active counts of the requested benefit
-	 * @param BenefitEffect The benefit effect to look for
-	 * @return The number of times the benefit is in effect (at the time of request)
-	 */
+	UFUNCTION(BlueprintCallable) bool ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
+	UFUNCTION(BlueprintCallable) bool RevokeEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
+	UFUNCTION(BlueprintCallable) bool ApplyEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount = 1);
+	UFUNCTION(BlueprintCallable) bool RevokeEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount = 1);
+	UFUNCTION(BlueprintCallable) bool RemoveEffectAtIndex(int IndexNumber = 0);
+	UFUNCTION(BlueprintCallable) void ToggleSprint(bool DoSprint = false);
 	UFUNCTION(BlueprintCallable) int GetNumActiveBenefit(EEffectsBeneficial BenefitEffect);
-
-	/** Returns the number of active counts of the requested detrimental effect
-	 * @param DetrimentEffect The detrimental effect to look for
-	 * @return The number of times the detrimental is in effect (at the time of request)
-	 */
 	UFUNCTION(BlueprintCallable) int GetNumActiveDetriment(EEffectsDetrimental DetrimentEffect);
 
 	/** Returns a TArray of all active effects, both beneficial and detrimental.
 	 * @return All active benefits at time of request.
 	 */
 	UFUNCTION(BlueprintPure) TArray<FStVitalityEffects> GetAllActiveEffects() { return mCurrentEffects; }
-
-	/** Returns a copy of the FStVitalityEffect data by given Unique Id. If there is no effect with the
-	 * requested UniqueId, or the UniqueId is invalid, this function will return empty table.
-	 * @return The data object found (or empty object)
-	 */
 	UFUNCTION(BlueprintPure) FStVitalityEffects GetEffectByUniqueId(int UniqueId);
-
 	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect);
-	
 	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByBenefit(EEffectsBeneficial BenefitEffect);
-	
-
 	UFUNCTION(BlueprintPure)
 	bool IsEffectActive(FName EffectName);
 	bool IsEffectActive(EEffectsBeneficial EffectEnum);
@@ -412,5 +297,7 @@ private: // private members
 	// Magic Subsystem
 	UPROPERTY(Replicated) float mMagicValue		= 1.f;	// Current Magic/mana
 	UPROPERTY(Replicated) float mMagicMax		= 1.f;  // Maximum Magic/mana
+
+	UPROPERTY(Replicated) FStCharacterStats _Stats = FStCharacterStats(); 
 	
 };

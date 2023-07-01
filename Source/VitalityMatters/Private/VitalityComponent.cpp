@@ -4,40 +4,6 @@
 
 #include "Net/UnrealNetwork.h"
 
-int UVitalityComponent::GetNumActiveBenefit(EEffectsBeneficial BenefitEffect)
-{
-	if (BenefitEffect == EEffectsBeneficial::NONE)
-		return 0;
-	int benefitCount(0);
-	// exp scope for good measure
-	{
-		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
-		for (int i = 0; mCurrentEffects.Num(); i++)
-		{
-			if (mCurrentEffects[i].benefitEffect == BenefitEffect)
-				benefitCount++;
-		}
-	}
-	return benefitCount;
-}
-
-int UVitalityComponent::GetNumActiveDetriment(EEffectsDetrimental DetrimentEffect)
-{
-	if (DetrimentEffect == EEffectsDetrimental::NONE)
-		return 0;
-	int detrimentCount(0);
-	// exp scope for good measure
-	{
-		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
-		for (int i = 0; mCurrentEffects.Num(); i++)
-		{
-			if (mCurrentEffects[i].detrimentEffect == DetrimentEffect)
-				detrimentCount++;
-		}
-	}
-	return detrimentCount;
-}
-
 // Sets default values for this component's properties
 UVitalityComponent::UVitalityComponent()
 {
@@ -52,6 +18,13 @@ void UVitalityComponent::OnComponentCreated()
 	RegisterComponent();
 }
 
+/** An alternative to 'ModifyVitalityStat(HEALTH)'. Calls appropriate
+ * events and handles death events as expected during normal gameplay, whereas
+ * ModifyVitalityStat() only manages the internal values without notifiers.
+ * @param DamageActor The AActor who dealt the damage. nullptr is treated as world damage.
+ * @param DamageTaken The amount of damage taken. Defaults to zero float.
+ * @return Returns the new health value. Negative return indicates failure.
+ */
 float UVitalityComponent::DamageHealth(AActor* DamageActor, float DamageTaken)
 {
 	const float oldHealth = mHealthValue;
@@ -73,6 +46,13 @@ float UVitalityComponent::DamageHealth(AActor* DamageActor, float DamageTaken)
 	return newHealth;
 }
 
+/** An alternative to 'ModifyVitalityStat(STAMINA)'. Calls appropriate
+ * events and handles death events as expected during normal gameplay, whereas
+ * ModifyVitalityStat() only manages the internal values without notifiers.
+ * @param DamageActor The AActor who dealt the damage. nullptr is treated as world damage.
+ * @param DamageTaken The amount of damage taken. Defaults to zero float.
+ * @return Returns the new health value. Negative return indicates failure.
+ */
 float UVitalityComponent::ConsumeStamina(AActor* DamageActor, float DamageTaken)
 {
 	const float NewDamage = 0.f - abs(DamageTaken); // ensures a negative
@@ -80,6 +60,13 @@ float UVitalityComponent::ConsumeStamina(AActor* DamageActor, float DamageTaken)
 	return newValue;
 }
 
+/** An alternative to 'ModifyVitalityStat(HEALTH)'. Calls appropriate
+ * events and handles death events as expected during normal gameplay, whereas
+ * ModifyVitalityStat() only manages the internal values without notifiers.
+ * @param DamageActor The AActor who dealt the damage. nullptr is treated as world damage.
+ * @param DamageTaken The amount of damage taken. Defaults to zero float.
+ * @return Returns the new health value. Negative return indicates failure.
+ */
 float UVitalityComponent::ConsumeMagic(AActor* DamageActor, float DamageTaken)
 {
 	const float NewDamage = 0.f - abs(DamageTaken); // ensures a negative
@@ -87,6 +74,42 @@ float UVitalityComponent::ConsumeMagic(AActor* DamageActor, float DamageTaken)
 	return newValue;
 }
 
+/**
+ * @brief Returns the value of resistance to the given damage type
+ * @param DamageEnum The damage enum type to retrieve
+ * @return The value of the resistance factor
+ */
+int UVitalityComponent::GetResistance(EDamageType DamageEnum) const
+{
+	for (const FStDamageIntMap IntMap : _Stats.DamageResists)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+			return IntMap.MapValue;
+	}
+	return 0;
+}
+
+/**
+ * @brief Returns the value of damage bonus for the given damage type
+ * @param DamageEnum The damage enum type to retrieve
+ * @return The value of the damage bonus
+ */
+int UVitalityComponent::GetDamageBonus(EDamageType DamageEnum) const
+{
+	for (const FStDamageIntMap IntMap : _Stats.DamageBonuses)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+			return IntMap.MapValue;
+	}
+	return 0;
+}
+
+/** Client or Server\n Gets the request vitality enum value.
+ * @param VitalityStat The stat to be retrieved
+ * @param StatValue The value (by ref) of the current stat
+ * @param StatMax The maximum value (by ref) of the stat
+ * @return The value of health, as a percentage
+ */
 float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax)
 {
 	
@@ -112,12 +135,46 @@ float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat, floa
 		StatValue = mMagicValue;
 		StatMax = mMagicMax;
 		return mMagicValue/mMagicMax;
+	case EVitalityCategories::STRENGTH:
+		StatValue = _Stats.Strength;
+		StatMax = _Stats.Strength;
+		return 1.0f;
+		
+	case EVitalityCategories::AGILITY:
+		StatValue = _Stats.Agility;
+		StatMax = _Stats.Agility;
+		return 1.0f;
+		
+	case EVitalityCategories::FORTITUDE:
+		StatValue = _Stats.Fortitude;
+		StatMax = _Stats.Fortitude;
+		return 1.0f;
+		
+	case EVitalityCategories::INTELLECT:
+		StatValue = _Stats.Intellect;
+		StatMax = _Stats.Intellect;
+		return 1.0f;
+		
+	case EVitalityCategories::ASTUTENESS:
+		StatValue = _Stats.Astuteness;
+		StatMax = _Stats.Astuteness;
+		return 1.0f;
+		
+	case EVitalityCategories::CHARISMA:
+		StatValue = _Stats.Charisma;
+		StatMax = _Stats.Charisma;
+		return 1.0f;
+		
 	default:
 		break;
 	}
 	return -0.f;
 }
 
+/** Client or Server\n C++ Overload - Gets the request vitality enum value.
+ * @param VitalityStat The stat to be retrieved
+ * @return The value of health, as a percentage
+ */
 float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat)
 {
 	switch(VitalityStat)
@@ -138,6 +195,11 @@ float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat)
 	return -0.f;
 }
 
+/** Server Only \n Sets the given stat to the given value.
+ * Does nothing if run on the client. Straight logic, no math.
+ * @param VitalityStat The enum to modify. Defaults to health.
+ * @param NewValue The new value of the stat. Defaults to 100.f
+ */
 float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, float NewValue)
 {
 	switch(VitalityStat)
@@ -187,6 +249,11 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 		}
 		return mStaminaValue;
 		
+	case EVitalityCategories::MAGIC:
+		mMagicValue = NewValue;
+		return mMagicValue;
+		
+		
 	case EVitalityCategories::HUNGER:
 		mCaloriesValue = NewValue;
 		if (mCaloriesValue > (mCaloriesMax * 0.7))
@@ -233,9 +300,35 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 		}
 		return mHydrationValue;
 		
-	case EVitalityCategories::MAGIC:
-		mMagicValue = NewValue;
-		return mMagicValue;
+	case EVitalityCategories::STRENGTH:
+		if (NewValue < 0.f)	_Stats.Strength = 0;
+		else				_Stats.Strength = FMath::RoundToInt(NewValue);
+		break;
+		
+	case EVitalityCategories::AGILITY:
+		if (NewValue < 0.f)	_Stats.Agility = 0;
+		else				_Stats.Agility = FMath::RoundToInt(NewValue);
+		break;
+		
+	case EVitalityCategories::FORTITUDE:
+		if (NewValue < 0.f)	_Stats.Fortitude = 0;
+		else				_Stats.Fortitude = FMath::RoundToInt(NewValue);
+		break;
+		
+	case EVitalityCategories::INTELLECT:
+		if (NewValue < 0.f)	_Stats.Intellect = 0;
+		else				_Stats.Intellect = FMath::RoundToInt(NewValue);
+		break;
+		
+	case EVitalityCategories::ASTUTENESS:
+		if (NewValue < 0.f)	_Stats.Astuteness = 0;
+		else				_Stats.Astuteness = FMath::RoundToInt(NewValue);
+		break;
+		
+	case EVitalityCategories::CHARISMA:
+		if (NewValue < 0.f)	_Stats.Charisma = 0;
+		else				_Stats.Charisma = FMath::RoundToInt(NewValue);
+		break;
 		
 	default:
 		break;
@@ -243,6 +336,13 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 	return -0.f;
 }
 
+/** Server Only\n Modifies the current value of the given stat, adding or
+ * subtracting value to it, respective of the signed float given. Does NOT trigger
+ * events. Use DamageHealth() or other similar functions to notify delegates.
+ * @param VitalityStat The enum to modify. Defaults to health.
+ * @param AddValue The value to add/remove. Sign sensitive. Defaults to 0.f
+ * @return The new stat value (should be input value). Negative indicates error.
+ */
 float UVitalityComponent::ModifyVitalityStat(EVitalityCategories VitalityStat, float AddValue)
 {
 	if (AddValue != 0.f)
@@ -254,6 +354,10 @@ float UVitalityComponent::ModifyVitalityStat(EVitalityCategories VitalityStat, f
 	return 0.f;
 }
 
+/** Removes the effect with the given Unique ID number.
+ * @param UniqueId The unique ID to remove. Defaults to 0. Fails if < 1.
+ * @return True on successful removal. False on failure, or if effect did not exist.
+ */
 bool UVitalityComponent::RemoveEffectByUniqueId(int UniqueId)
 {
 	if (UniqueId < 1)
@@ -270,6 +374,11 @@ bool UVitalityComponent::RemoveEffectByUniqueId(int UniqueId)
 	return false;
 }
 
+/** Server Only\n Adds the requested benefit.
+ * @param EffectName The table row name to apply.
+ * @param StackCount The number of times to apply the effect
+ * @return True if the effect was added. False on failure.
+ */
 bool UVitalityComponent::ApplyEffect(FName EffectName, int StackCount)
 {
 	FStVitalityEffects vitalityData = UVitalitySystem::GetVitalityEffect(EffectName);
@@ -289,6 +398,11 @@ bool UVitalityComponent::ApplyEffect(FName EffectName, int StackCount)
 	return false;
 }
 
+/** Server Only\n Removes the requested benefit.
+ * @param EffectName The table row name to revoke.
+ * @param RemoveCount The number of times to remove the effect
+ * @return True if the effect was removed at least once. False on failure.
+ */
 bool UVitalityComponent::RemoveEffect(FName EffectName, int RemoveCount)
 {
 	TArray<int> effectsRemoved;
@@ -311,6 +425,11 @@ bool UVitalityComponent::RemoveEffect(FName EffectName, int RemoveCount)
 	return (effectsRemoved.Num() > 0);
 }
 
+/** Server Only\n Adds the requested benefit enum.
+ * @param EffectBeneficial The num to apply/revoke.
+ * @param StackCount The number of times to apply the effect
+ * @return True if the effect was added. False on failure.
+ */
 bool UVitalityComponent::ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount)
 {
 	// Do nothing if the effect or stack count is invalid
@@ -343,6 +462,11 @@ bool UVitalityComponent::ApplyEffectBeneficial(EEffectsBeneficial EffectBenefici
 	return false;
 }
 
+/** Server Only\n Removes the requested benefit enum.
+ * @param EffectBeneficial The num to apply/revoke.
+ * @param StackCount The number of identical effects to remove
+ * @return True if the effect was removed. False on failure.
+ */
 bool UVitalityComponent::RevokeEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount)
 {
 	// Do nothing if the effect or stack count is invalid
@@ -374,6 +498,11 @@ bool UVitalityComponent::RevokeEffectBeneficial(EEffectsBeneficial EffectBenefic
 	return (removedUniqueIds.Num() > 0);
 }
 
+/** Server Only\n Adds the requested detriment enum.
+ * @param EffectDetrimental The num to apply/revoke.
+ * @param StackCount The number of times to apply the effect
+ * @return True if the effect was added. False on failure.
+ */
 bool UVitalityComponent::ApplyEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount)
 {
 	// Do nothing if the effect or stack count is invalid
@@ -417,6 +546,11 @@ bool UVitalityComponent::ApplyEffectDetrimental(EEffectsDetrimental EffectDetrim
 	return false;
 }
 
+/** Server Only\n Removes the requested detriment enum.
+ * @param EffectDetrimental The num to apply/revoke.
+ * @param StackCount The number of identical effects to remove
+ * @return True if the effect was removed. False on failure.
+ */
 bool UVitalityComponent::RevokeEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount)
 {
 	// Return false if invalid effect or stack count
@@ -470,6 +604,10 @@ bool UVitalityComponent::RevokeEffectDetrimental(EEffectsDetrimental EffectDetri
 	return true;
 }
 
+/** Server Only\n Removes the effect at the given index.
+ * @param IndexNumber The index number of the current effect to remove
+ * @return True if the effect was removed. False on failure.
+ */
 bool UVitalityComponent::RemoveEffectAtIndex(int IndexNumber)
 {
 	if (mCurrentEffects.IsValidIndex(IndexNumber))
@@ -480,6 +618,9 @@ bool UVitalityComponent::RemoveEffectAtIndex(int IndexNumber)
 	return false;
 }
 
+/** Server or Client\n Starts or Stops the Sprinting Mechanic.
+ * @param DoSprint If true, attempts to start sprinting. False stops.
+ */
 void UVitalityComponent::ToggleSprint(bool DoSprint)
 {
 	if (!GetOwner()->HasAuthority())
@@ -498,6 +639,52 @@ void UVitalityComponent::ToggleSprint(bool DoSprint)
 	}
 }
 
+/** Returns the number of active counts of the requested benefit
+ * @param BenefitEffect The benefit effect to look for
+ * @return The number of times the benefit is in effect (at the time of request)
+ */
+int UVitalityComponent::GetNumActiveBenefit(EEffectsBeneficial BenefitEffect)
+{
+	if (BenefitEffect == EEffectsBeneficial::NONE)
+		return 0;
+	int benefitCount(0);
+	// exp scope for good measure
+	{
+		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
+		for (int i = 0; mCurrentEffects.Num(); i++)
+		{
+			if (mCurrentEffects[i].benefitEffect == BenefitEffect)
+				benefitCount++;
+		}
+	}
+	return benefitCount;
+}
+
+/** Returns the number of active counts of the requested detrimental effect
+ * @param DetrimentEffect The detrimental effect to look for
+ * @return The number of times the detrimental is in effect (at the time of request)
+ */
+int UVitalityComponent::GetNumActiveDetriment(EEffectsDetrimental DetrimentEffect)
+{
+	if (DetrimentEffect == EEffectsDetrimental::NONE)
+		return 0;
+	int detrimentCount(0);
+	// exp scope for good measure
+	{
+		FRWScopeLock ReadLock(mMutexLock, SLT_Write);
+		for (int i = 0; mCurrentEffects.Num(); i++)
+		{
+			if (mCurrentEffects[i].detrimentEffect == DetrimentEffect)
+				detrimentCount++;
+		}
+	}
+	return detrimentCount;
+}
+
+/** Returns a copy of the FStVitalityEffect data by given Unique Id. If there is no effect with the
+ * requested UniqueId, or the UniqueId is invalid, this function will return empty table.
+ * @return The data object found (or empty object)
+ */
 FStVitalityEffects UVitalityComponent::GetEffectByUniqueId(int UniqueId)
 {
 	if (UniqueId > 0)
