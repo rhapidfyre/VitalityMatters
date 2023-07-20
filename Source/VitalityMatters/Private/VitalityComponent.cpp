@@ -27,6 +27,9 @@ void UVitalityComponent::OnComponentCreated()
  */
 float UVitalityComponent::DamageHealth(AActor* DamageActor, float DamageTaken)
 {
+	if (FMath::IsNearlyZero(DamageTaken,0.001f))
+		return mHealthValue;
+	
 	const float oldHealth = mHealthValue;
 	const float NewDamage = 0.f - abs(DamageTaken); // ensures a negative
 	const float newHealth = ModifyVitalityStat(EVitalityCategories::HEALTH, NewDamage);
@@ -34,13 +37,13 @@ float UVitalityComponent::DamageHealth(AActor* DamageActor, float DamageTaken)
 	{
 		if (newHealth <= 0.f && oldHealth > 0.f)
 		{
-			OnDeath.Broadcast(DamageActor);
-			Multicast_VitalityDeath();
+			//OnDeath.Broadcast(DamageActor);
+			Multicast_VitalityDeath(DamageActor);
 		}
 		else
 		{
-			OnDamageTaken.Broadcast(DamageActor, NewDamage);
-			Multicast_DamageTaken(NewDamage);
+			//OnDamageTaken.Broadcast(GetOwner(), DamageActor, NewDamage);
+			Multicast_DamageTaken(GetOwner(), DamageActor, NewDamage);
 		}
 	}
 	return newHealth;
@@ -74,6 +77,44 @@ float UVitalityComponent::ConsumeMagic(AActor* DamageActor, float DamageTaken)
 	return newValue;
 }
 
+void UVitalityComponent::SetTotalResistanceValue(EDamageType DamageEnum, int NewValue)
+{
+	for (FStDamageIntMap IntMap : _Stats.DamageResists)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+		{
+			IntMap.MapValue = NewValue;
+			OnDamageBonusModified.Broadcast(DamageEnum, IntMap.MapValue);
+		}
+	}
+}
+
+void UVitalityComponent::AddResistance(EDamageType DamageEnum, int AddValue)
+{
+	for (FStDamageIntMap IntMap : _Stats.DamageResists)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+		{
+			const int OldValue = IntMap.MapValue;
+			IntMap.MapValue = OldValue + FMath::Abs(AddValue);
+			OnDamageBonusModified.Broadcast(DamageEnum, IntMap.MapValue);
+		}
+	}
+}
+
+void UVitalityComponent::RemoveResistance(EDamageType DamageEnum, int RemoveValue)
+{
+	for (FStDamageIntMap IntMap : _Stats.DamageResists)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+		{
+			const int OldValue = IntMap.MapValue;
+			IntMap.MapValue = OldValue - FMath::Abs(RemoveValue);
+			OnDamageBonusModified.Broadcast(DamageEnum, IntMap.MapValue);
+		}
+	}
+}
+
 /**
  * @brief Returns the value of resistance to the given damage type
  * @param DamageEnum The damage enum type to retrieve
@@ -87,6 +128,44 @@ int UVitalityComponent::GetResistance(EDamageType DamageEnum) const
 			return IntMap.MapValue;
 	}
 	return 0;
+}
+
+void UVitalityComponent::SetTotalDamageBonus(EDamageType DamageEnum, int NewValue)
+{
+	for (FStDamageIntMap IntMap : _Stats.DamageBonuses)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+		{
+			IntMap.MapValue = NewValue;
+			OnDamageBonusModified.Broadcast(DamageEnum, IntMap.MapValue);
+		}
+	}
+}
+
+void UVitalityComponent::AddDamageBonus(EDamageType DamageEnum, int AddValue)
+{
+	for (FStDamageIntMap IntMap : _Stats.DamageBonuses)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+		{
+			const int OldValue = IntMap.MapValue;
+			IntMap.MapValue = OldValue + FMath::Abs(AddValue);
+			OnDamageBonusModified.Broadcast(DamageEnum, IntMap.MapValue);
+		}
+	}
+}
+
+void UVitalityComponent::RemoveDamageBonus(EDamageType DamageEnum, int RemoveValue)
+{
+	for (FStDamageIntMap IntMap : _Stats.DamageBonuses)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+		{
+			const int OldValue = IntMap.MapValue;
+			IntMap.MapValue = OldValue - FMath::Abs(RemoveValue);
+			OnDamageBonusModified.Broadcast(DamageEnum, IntMap.MapValue);
+		}
+	}
 }
 
 /**
@@ -345,7 +424,7 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
  */
 float UVitalityComponent::ModifyVitalityStat(EVitalityCategories VitalityStat, float AddValue)
 {
-	if (AddValue != 0.f)
+	if (!FMath::IsNearlyZero(AddValue,0.001f))
 	{
 		float statValue(0.f); float statMax(0.f);
 		GetVitalityStat(VitalityStat, statValue, statMax);
@@ -784,6 +863,62 @@ bool UVitalityComponent::IsEffectActive(EEffectsDetrimental EffectEnum)
 	return IsEffectActive(vData.properName);
 }
 
+void UVitalityComponent::SetCombatState(ECombatState CombatState)
+{
+	if (GetOwner()->HasAuthority())
+	{
+		float CombatTimer = 0.f;
+		
+		// Everytime hostile action is taken, reset the timer
+		if (CombatState == ECombatState::ENGAGED)
+		{
+			if (mCombatStateTimer.IsValid())
+				mCombatStateTimer.Invalidate();
+			CombatTimer = 10.f;
+		}
+		
+		if (_CombatState != CombatState)
+		{
+			
+			const ECombatState OldState = _CombatState;
+			_CombatState = CombatState;
+			OnCombatStateChanged.Broadcast(OldState, _CombatState);
+			
+			if (OldState != ECombatState::ENGAGED)
+			{
+				// Player has either acquired or sustained alertness
+				if (_CombatState == ECombatState::ALERT)
+				{
+					CombatTimer = 3.f;
+				}
+				// Player is now engaged in combat
+				else if (_CombatState == ECombatState::ENGAGED)
+				{
+					CombatTimer = 10.f;
+				}
+			}
+			else
+			{
+				// Player has left combat and is coming down from engagement
+				if (_CombatState == ECombatState::ALERT)
+				{
+					CombatTimer = 10.f;
+				}
+			}
+			
+		}
+		
+		if (CombatTimer > 0.f)
+		{
+			if (mCombatStateTimer.IsValid())
+				mCombatStateTimer.Invalidate();
+			
+			GetWorld()->GetTimerManager().SetTimer(mCombatStateTimer, this,
+				&UVitalityComponent::DowngradeCombatState, CombatTimer, false);
+		}
+	}
+}
+
 // Called when the game starts
 void UVitalityComponent::BeginPlay()
 {
@@ -1035,6 +1170,24 @@ void UVitalityComponent::Server_ToggleSprint_Implementation(bool DoSprint)
 	ToggleSprint(DoSprint);
 }
 
+void UVitalityComponent::DowngradeCombatState()
+{
+	switch(_CombatState)
+	{
+	// Downgrade ENGAGED to ALERT
+	case ECombatState::ENGAGED:
+		SetCombatState(ECombatState::ALERT);
+		break;
+	// Downgrade ALERT to RELAXED
+	case ECombatState::ALERT:
+		SetCombatState(ECombatState::RELAXED);
+		break;
+	// No other states downgrade
+	default:
+		break;
+	}
+}
+
 int UVitalityComponent::GenerateUniqueId()
 {
 	int randomNumber(-1);
@@ -1086,14 +1239,44 @@ void UVitalityComponent::CancelTimer(FTimerHandle& timerHandle)
 	}
 }
 
-void UVitalityComponent::Multicast_VitalityDeath_Implementation()
+void UVitalityComponent::OnRep_HydrationValue_Implementation()
 {
-	OnDeath.Broadcast(nullptr);
+	OnHydrationUpdated.Broadcast();
 }
 
-void UVitalityComponent::Multicast_DamageTaken_Implementation(float DamageTaken)
+void UVitalityComponent::OnRep_CaloriesValue_Implementation()
 {
-	OnDamageTaken.Broadcast(nullptr, DamageTaken);
+	OnCaloriesUpdated.Broadcast();
+}
+
+void UVitalityComponent::OnRep_StaminaValue_Implementation()
+{
+	OnStaminaUpdated.Broadcast();
+}
+
+void UVitalityComponent::OnRep_HealthValue_Implementation()
+{
+	OnHealthUpdated.Broadcast();
+}
+
+void UVitalityComponent::OnRep_MagicValue_Implementation()
+{
+	OnMagicUpdated.Broadcast();
+}
+
+void UVitalityComponent::OnRep_CombatState_Implementation(ECombatState OldCombatState)
+{
+	OnCombatStateChanged.Broadcast(OldCombatState, _CombatState);
+}
+
+void UVitalityComponent::Multicast_VitalityDeath_Implementation(AActor* DamageActor)
+{
+	OnDeath.Broadcast(DamageActor);
+}
+
+void UVitalityComponent::Multicast_DamageTaken_Implementation(AActor* DamageTaker, AActor* DamageInstigator, float DamageTaken)
+{
+	OnDamageTaken.Broadcast(DamageTaker, DamageInstigator, DamageTaken);
 }
 
 void UVitalityComponent::OnRep_CurrentEffects_Implementation()
@@ -1113,6 +1296,8 @@ void UVitalityComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> & 
 	// Update to owner only.
 	// These vars only have value to the actor it affects and no-one else.
 	DOREPLIFETIME_CONDITION(UVitalityComponent, mIsSprinting,		COND_OwnerOnly);
+	
+	DOREPLIFETIME(UVitalityComponent, _CombatState);
 	
 	DOREPLIFETIME(UVitalityComponent, mStaminaValue);
 	DOREPLIFETIME(UVitalityComponent, mStaminaMax);

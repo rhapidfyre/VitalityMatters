@@ -23,12 +23,12 @@ struct FStCharacterStats
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Strength 	= 100;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Agility  	= 100;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Fortitude	= 100;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Astuteness	= 100;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Intellect	= 100;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Charisma	= 100;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Strength 	= 20;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Agility  	= 20;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Fortitude	= 20;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Astuteness	= 20;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Intellect	= 20;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Charisma	= 20;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStDamageIntMap> DamageBonuses;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStDamageIntMap> DamageResists;

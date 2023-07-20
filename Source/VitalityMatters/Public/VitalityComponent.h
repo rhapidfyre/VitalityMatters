@@ -9,6 +9,10 @@
 
 #include "VitalityComponent.generated.h"
 
+// Called when the combat state has changed
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+	FOnCombatStateChanged,	ECombatState, OldCombatState, ECombatState, NewState);
+
 // Called when the character is killed, or the object is destroyed
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnDeath,				AActor*, KillingActor);
@@ -18,8 +22,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnSprint,				bool,  IsSprinting);
 
 // Called whenever the actor takes damage, whether it kills them or not.
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-	FOnDamageTaken,			AActor*, DamageInstigator, float, DamageTaken);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnDamageTaken,			AActor*, DamageTaker, AActor*, DamageInstigator, float, DamageTaken);
 
 // Called whenever the actor is healed, whether dead or not
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
@@ -32,7 +36,21 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 // Called whenever any stat changes
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FOnStatModified,		EVitalityCategories, VitalityStat,
-							float, OldValue,		float, NewValue);
+	float, OldValue,		float, NewValue);
+
+// Called whenever a damage bonus has changed
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+	FOnDamageBonusModified,	EDamageType, DamageBonusType, int, NewTotal);
+
+// Called whenever a damage resistance has changed
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+	FOnResistanceModified,	EDamageType, ResistanceType, int, NewTotal);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHealthUpdated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStaminaUpdated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMagicUpdated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHydrationUpdated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCaloriesUpdated);
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -64,6 +82,18 @@ public: // public functions
 	// CLIENT ONLY - Always called with Unique ID zero when the effects array is replicated
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnEffectModified OnEffectModified;
 	
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnDamageBonusModified OnDamageBonusModified;
+
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnResistanceModified OnResistanceModified;
+
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnCombatStateChanged OnCombatStateChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnHealthUpdated		OnHealthUpdated;
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnStaminaUpdated		OnStaminaUpdated;
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnMagicUpdated		OnMagicUpdated;
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnHydrationUpdated	OnHydrationUpdated;
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnCaloriesUpdated		OnCaloriesUpdated;
+	
 	UFUNCTION(BlueprintCallable) float DamageHealth(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
 	UFUNCTION(BlueprintCallable) float ConsumeStamina(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
 	UFUNCTION(BlueprintCallable) float ConsumeMagic(AActor* DamageActor = nullptr, float DamageTaken = 0.f);
@@ -81,12 +111,20 @@ public: // public functions
 	UFUNCTION(BlueprintPure) int Astuteness() const { return _Stats.Astuteness; } // Quick Accessor
 	UFUNCTION(BlueprintPure) int Charisma() const { return _Stats.Charisma; } // Quick Accessor
 
+	UFUNCTION(BlueprintCallable) void SetTotalResistanceValue(EDamageType DamageEnum, int NewValue = 0);
+	UFUNCTION(BlueprintCallable) void AddResistance(EDamageType DamageEnum, int AddValue = 0);
+	UFUNCTION(BlueprintCallable) void RemoveResistance(EDamageType DamageEnum, int RemoveValue = 0);
 	UFUNCTION(BlueprintPure) int GetResistance(EDamageType DamageEnum = EDamageType::ADMIN) const;
+
+	UFUNCTION(BlueprintCallable) void SetTotalDamageBonus(EDamageType DamageEnum, int NewValue = 0);
+	UFUNCTION(BlueprintCallable) void AddDamageBonus(EDamageType DamageEnum, int AddValue = 0);
+	UFUNCTION(BlueprintCallable) void RemoveDamageBonus(EDamageType DamageEnum, int RemoveValue = 0);
 	UFUNCTION(BlueprintPure) int GetDamageBonus(EDamageType DamageEnum = EDamageType::ADMIN) const;
 	
 	UFUNCTION(BlueprintPure) float GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax);
 	float GetVitalityStat(EVitalityCategories VitalityStat);
 	UFUNCTION(BlueprintCallable) float SetVitalityStat(EVitalityCategories VitalityStat, float NewValue = 100.f);
+
 	UFUNCTION(BlueprintCallable) float ModifyVitalityStat(EVitalityCategories VitalityStat, float AddValue = 0.f);
 	UFUNCTION(BlueprintCallable) bool RemoveEffectByUniqueId(int UniqueId = 0);
 	UFUNCTION(BlueprintCallable) bool ApplyEffect(FName EffectName, int StackCount = 1);
@@ -111,7 +149,9 @@ public: // public functions
 	bool IsEffectActive(FName EffectName);
 	bool IsEffectActive(EEffectsBeneficial EffectEnum);
 	bool IsEffectActive(EEffectsDetrimental EffectEnum);
-	
+
+	UFUNCTION(BlueprintCallable) void SetCombatState(ECombatState CombatState);
+	UFUNCTION(BlueprintCallable) ECombatState GetCombatState() const { return _CombatState; }	
 protected: // protected functions
 
 	virtual void BeginPlay() override;
@@ -157,6 +197,8 @@ private: // private functions
 	// Helper function in the case ToggleSprint() is called on the client
 	UFUNCTION(Server, Reliable) void Server_ToggleSprint(bool DoSprint = false);
 
+	UFUNCTION() void DowngradeCombatState();
+	
 	int GenerateUniqueId();
 
 	UFUNCTION(Client, Reliable)
@@ -170,13 +212,14 @@ private: // private functions
 	 * successfully, but the character survives the damage. Used to trigger clientside events.
 	 * May arrive prior to the mHealthValue actually being changed.
 	 */
-	UFUNCTION(Client, Unreliable) void Multicast_DamageTaken(float DamageTaken = 0.f);
+	UFUNCTION(NetMulticast, Unreliable) void Multicast_DamageTaken(
+		AActor* DamageTaker = nullptr, AActor* DamageInstigator = nullptr, float DamageTaken = 0.f);
 	
 	/** Sent to all clients from server when the DamageHealth() function runs
 	 * successfully, and the character dies as a result. Used to trigger clientside events.
 	 * May arrive prior to the mHealthValue actually being changed.
 	 */
-	UFUNCTION(Client, Unreliable) void Multicast_VitalityDeath();
+	UFUNCTION(Client, Unreliable) void Multicast_VitalityDeath(AActor* DamageActor = nullptr);
 	
 public: // public members
 
@@ -268,34 +311,45 @@ private: // private members
 	UPROPERTY() FTimerHandle mEffectsTimer;
 	UPROPERTY() FTimerHandle mCaloriesTimer;
 	UPROPERTY() FTimerHandle mHydrationTimer;
+	UPROPERTY() FTimerHandle mCombatStateTimer;
 	
 	// Handles stamina cooldown before regen can occur
 	UPROPERTY() FTimerHandle mStaminaCooldownTimer;
+
+	// General Members
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CombatState)
+	ECombatState _CombatState = ECombatState::RELAXED;
+	UFUNCTION(NetMulticast, Reliable) void OnRep_CombatState(ECombatState OldCombatState);
 	
 	// Stamina Subsystem
+	UFUNCTION(Client, Unreliable) void OnRep_StaminaValue();
 	UPROPERTY(Replicated) bool mIsSprinting = false;	// True if actively sprinting
 	float mStaminaDrain = 1.f;							// Drain Rate when Sprinting
 	float mStaminaRegen = 1.f;							// Regen Rate
-	UPROPERTY(Replicated) float mStaminaValue = 1.f;	// Current Stamina
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_StaminaValue) float mStaminaValue = 1.f;	// Current Stamina
 	UPROPERTY(Replicated) float mStaminaMax   = 1.f;    // Maximum Stamina
 	float mSprintSpeed  = 1.2; // Percentage of base speed increase when sprinting
 	bool mCanSprint		= true;
 
 	// Health Subsystem
-	UPROPERTY(Replicated) float mHealthValue = 1.f;		// Current Health
+	UFUNCTION(Client, Unreliable) void OnRep_HealthValue();
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_HealthValue) float mHealthValue = 1.f;		// Current Health
 	UPROPERTY(Replicated) float mHealthMax   = 1.f;		// Maximum Health
 	float mHealthRegen = 1.f;							// Passive health regen rate
 
 	// Nutrition Subsystem
-	UPROPERTY(Replicated) float mCaloriesValue  = 1.f;		// Current Calories
+	UFUNCTION(Client, Unreliable) void OnRep_CaloriesValue();
+	UFUNCTION(Client, Unreliable) void OnRep_HydrationValue();
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CaloriesValue) float mCaloriesValue  = 1.f;		// Current Calories
 	UPROPERTY(Replicated) float mCaloriesMax    = 500.f;	// Maximum Hydration
-	UPROPERTY(Replicated) float mHydrationValue = 1.f;		// Current Hydration
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_HydrationValue) float mHydrationValue = 1.f;		// Current Hydration
 	UPROPERTY(Replicated) float mHydrationMax   = 500.f;	// Maximum Hydration
 	float mCaloriesDrainRest   = 0.082;						// Rate calories are lost at rest
 	float mHydrationDrainRest  = 0.082;						// Rate of dehydration at rest
 	
 	// Magic Subsystem
-	UPROPERTY(Replicated) float mMagicValue		= 1.f;	// Current Magic/mana
+	UFUNCTION(Client, Unreliable) void OnRep_MagicValue();
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_MagicValue) float mMagicValue		= 1.f;	// Current Magic/mana
 	UPROPERTY(Replicated) float mMagicMax		= 1.f;  // Maximum Magic/mana
 
 	UPROPERTY(Replicated) FStCharacterStats _Stats = FStCharacterStats(); 
