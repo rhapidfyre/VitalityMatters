@@ -32,7 +32,6 @@ struct FStCharacterStats
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStDamageIntMap> DamageBonuses;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStDamageIntMap> DamageResists;
-	
 };
 
 /**

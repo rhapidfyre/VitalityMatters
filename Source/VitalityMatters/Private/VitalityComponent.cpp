@@ -79,7 +79,7 @@ float UVitalityComponent::ConsumeMagic(AActor* DamageActor, float DamageTaken)
 
 void UVitalityComponent::SetTotalResistanceValue(EDamageType DamageEnum, int NewValue)
 {
-	for (FStDamageIntMap IntMap : _Stats.DamageResists)
+	for (FStDamageIntMap IntMap : _BaseStats.DamageResists)
 	{
 		if (IntMap.DamageEnum == DamageEnum)
 		{
@@ -89,9 +89,9 @@ void UVitalityComponent::SetTotalResistanceValue(EDamageType DamageEnum, int New
 	}
 }
 
-void UVitalityComponent::AddResistance(EDamageType DamageEnum, int AddValue)
+void UVitalityComponent::AddNaturalResistance(EDamageType DamageEnum, int AddValue)
 {
-	for (FStDamageIntMap IntMap : _Stats.DamageResists)
+	for (FStDamageIntMap IntMap : _BaseStats.DamageResists)
 	{
 		if (IntMap.DamageEnum == DamageEnum)
 		{
@@ -102,9 +102,35 @@ void UVitalityComponent::AddResistance(EDamageType DamageEnum, int AddValue)
 	}
 }
 
-void UVitalityComponent::RemoveResistance(EDamageType DamageEnum, int RemoveValue)
+void UVitalityComponent::RemoveNaturalResistance(EDamageType DamageEnum, int RemoveValue)
 {
-	for (FStDamageIntMap IntMap : _Stats.DamageResists)
+	for (FStDamageIntMap IntMap : _BaseStats.DamageResists)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+		{
+			const int OldValue = IntMap.MapValue;
+			IntMap.MapValue = OldValue - FMath::Abs(RemoveValue);
+			OnDamageBonusModified.Broadcast(DamageEnum, IntMap.MapValue);
+		}
+	}
+}
+
+void UVitalityComponent::AddGearResistance(EDamageType DamageEnum, int AddValue)
+{
+	for (FStDamageIntMap IntMap : _GearStats.DamageResists)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+		{
+			const int OldValue = IntMap.MapValue;
+			IntMap.MapValue = OldValue + FMath::Abs(AddValue);
+			OnDamageBonusModified.Broadcast(DamageEnum, IntMap.MapValue);
+		}
+	}
+}
+
+void UVitalityComponent::RemoveGearResistance(EDamageType DamageEnum, int RemoveValue)
+{
+	for (FStDamageIntMap IntMap : _GearStats.DamageResists)
 	{
 		if (IntMap.DamageEnum == DamageEnum)
 		{
@@ -122,17 +148,28 @@ void UVitalityComponent::RemoveResistance(EDamageType DamageEnum, int RemoveValu
  */
 int UVitalityComponent::GetResistance(EDamageType DamageEnum) const
 {
-	for (const FStDamageIntMap IntMap : _Stats.DamageResists)
+	int TotalValue = 0;
+	
+	TArray<const FStCharacterStats*> StatCalculations;
+	StatCalculations.Add(&_BaseStats);
+	StatCalculations.Add(&_GearStats);
+	StatCalculations.Add(&_AffectStats);
+	
+	for (const FStCharacterStats* StatGroup : StatCalculations)
 	{
-		if (IntMap.DamageEnum == DamageEnum)
-			return IntMap.MapValue;
+		for (const FStDamageIntMap& IntMap : StatGroup->DamageResists)
+		{
+			if (IntMap.DamageEnum == DamageEnum)
+				TotalValue += IntMap.MapValue;
+		}
 	}
-	return 0;
+	
+	return TotalValue;
 }
 
 void UVitalityComponent::SetTotalDamageBonus(EDamageType DamageEnum, int NewValue)
 {
-	for (FStDamageIntMap IntMap : _Stats.DamageBonuses)
+	for (FStDamageIntMap IntMap : _BaseStats.DamageBonuses)
 	{
 		if (IntMap.DamageEnum == DamageEnum)
 		{
@@ -142,9 +179,9 @@ void UVitalityComponent::SetTotalDamageBonus(EDamageType DamageEnum, int NewValu
 	}
 }
 
-void UVitalityComponent::AddDamageBonus(EDamageType DamageEnum, int AddValue)
+void UVitalityComponent::AddNaturalDamageBonus(EDamageType DamageEnum, int AddValue)
 {
-	for (FStDamageIntMap IntMap : _Stats.DamageBonuses)
+	for (FStDamageIntMap IntMap : _BaseStats.DamageBonuses)
 	{
 		if (IntMap.DamageEnum == DamageEnum)
 		{
@@ -155,9 +192,9 @@ void UVitalityComponent::AddDamageBonus(EDamageType DamageEnum, int AddValue)
 	}
 }
 
-void UVitalityComponent::RemoveDamageBonus(EDamageType DamageEnum, int RemoveValue)
+void UVitalityComponent::RemoveNaturalDamageBonus(EDamageType DamageEnum, int RemoveValue)
 {
-	for (FStDamageIntMap IntMap : _Stats.DamageBonuses)
+	for (FStDamageIntMap IntMap : _BaseStats.DamageBonuses)
 	{
 		if (IntMap.DamageEnum == DamageEnum)
 		{
@@ -168,6 +205,41 @@ void UVitalityComponent::RemoveDamageBonus(EDamageType DamageEnum, int RemoveVal
 	}
 }
 
+void UVitalityComponent::AddGearDamageBonus(EDamageType DamageEnum, int AddValue)
+{
+	for (FStDamageIntMap IntMap : _GearStats.DamageBonuses)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+		{
+			const int OldValue = IntMap.MapValue;
+			IntMap.MapValue = OldValue + FMath::Abs(AddValue);
+			OnDamageBonusModified.Broadcast(DamageEnum, IntMap.MapValue);
+		}
+	}
+}
+
+void UVitalityComponent::RemoveGearDamageBonus(EDamageType DamageEnum, int RemoveValue)
+{
+	for (FStDamageIntMap IntMap : _GearStats.DamageBonuses)
+	{
+		if (IntMap.DamageEnum == DamageEnum)
+		{
+			const int OldValue = IntMap.MapValue;
+			IntMap.MapValue = OldValue - FMath::Abs(RemoveValue);
+			OnDamageBonusModified.Broadcast(DamageEnum, IntMap.MapValue);
+		}
+	}
+}
+
+// Call when the player's affects change to recalculate stats
+int UVitalityComponent::CalculateAffectDamageBonuses() const
+{
+	for (const FStVitalityEffects& ActiveEffect : mCurrentEffects)
+	{
+		
+	}
+}
+
 /**
  * @brief Returns the value of damage bonus for the given damage type
  * @param DamageEnum The damage enum type to retrieve
@@ -175,12 +247,23 @@ void UVitalityComponent::RemoveDamageBonus(EDamageType DamageEnum, int RemoveVal
  */
 int UVitalityComponent::GetDamageBonus(EDamageType DamageEnum) const
 {
-	for (const FStDamageIntMap IntMap : _Stats.DamageBonuses)
+	int TotalValue = 0;
+	
+	TArray<const FStCharacterStats*> StatCalculations;
+	StatCalculations.Add(&_BaseStats);
+	StatCalculations.Add(&_GearStats);
+	StatCalculations.Add(&_AffectStats);
+	
+	for (const FStCharacterStats* StatGroup : StatCalculations)
 	{
-		if (IntMap.DamageEnum == DamageEnum)
-			return IntMap.MapValue;
+		for (const FStDamageIntMap& IntMap : StatGroup->DamageBonuses)
+		{
+			if (IntMap.DamageEnum == DamageEnum)
+				TotalValue += IntMap.MapValue;
+		}
 	}
-	return 0;
+	
+	return TotalValue;
 }
 
 /** Client or Server\n Gets the request vitality enum value.
@@ -189,7 +272,8 @@ int UVitalityComponent::GetDamageBonus(EDamageType DamageEnum) const
  * @param StatMax The maximum value (by ref) of the stat
  * @return The value of health, as a percentage
  */
-float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax)
+float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat,
+		float &StatValue, float &StatMax) const
 {
 	
 	switch(VitalityStat)
@@ -215,33 +299,33 @@ float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat, floa
 		StatMax = mMagicMax;
 		return mMagicValue/mMagicMax;
 	case EVitalityCategories::STRENGTH:
-		StatValue = _Stats.Strength;
-		StatMax = _Stats.Strength;
+		StatValue = _BaseStats.Strength;
+		StatMax = _BaseStats.Strength;
 		return 1.0f;
 		
 	case EVitalityCategories::AGILITY:
-		StatValue = _Stats.Agility;
-		StatMax = _Stats.Agility;
+		StatValue = _BaseStats.Agility;
+		StatMax = _BaseStats.Agility;
 		return 1.0f;
 		
 	case EVitalityCategories::FORTITUDE:
-		StatValue = _Stats.Fortitude;
-		StatMax = _Stats.Fortitude;
+		StatValue = _BaseStats.Fortitude;
+		StatMax = _BaseStats.Fortitude;
 		return 1.0f;
 		
 	case EVitalityCategories::INTELLECT:
-		StatValue = _Stats.Intellect;
-		StatMax = _Stats.Intellect;
+		StatValue = _BaseStats.Intellect;
+		StatMax = _BaseStats.Intellect;
 		return 1.0f;
 		
 	case EVitalityCategories::ASTUTENESS:
-		StatValue = _Stats.Astuteness;
-		StatMax = _Stats.Astuteness;
+		StatValue = _BaseStats.Astuteness;
+		StatMax = _BaseStats.Astuteness;
 		return 1.0f;
 		
 	case EVitalityCategories::CHARISMA:
-		StatValue = _Stats.Charisma;
-		StatMax = _Stats.Charisma;
+		StatValue = _BaseStats.Charisma;
+		StatMax = _BaseStats.Charisma;
 		return 1.0f;
 		
 	default:
@@ -380,33 +464,33 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 		return mHydrationValue;
 		
 	case EVitalityCategories::STRENGTH:
-		if (NewValue < 0.f)	_Stats.Strength = 0;
-		else				_Stats.Strength = FMath::RoundToInt(NewValue);
+		if (NewValue < 0.f)	_BaseStats.Strength = 0;
+		else				_BaseStats.Strength = FMath::RoundToInt(NewValue);
 		break;
 		
 	case EVitalityCategories::AGILITY:
-		if (NewValue < 0.f)	_Stats.Agility = 0;
-		else				_Stats.Agility = FMath::RoundToInt(NewValue);
+		if (NewValue < 0.f)	_BaseStats.Agility = 0;
+		else				_BaseStats.Agility = FMath::RoundToInt(NewValue);
 		break;
 		
 	case EVitalityCategories::FORTITUDE:
-		if (NewValue < 0.f)	_Stats.Fortitude = 0;
-		else				_Stats.Fortitude = FMath::RoundToInt(NewValue);
+		if (NewValue < 0.f)	_BaseStats.Fortitude = 0;
+		else				_BaseStats.Fortitude = FMath::RoundToInt(NewValue);
 		break;
 		
 	case EVitalityCategories::INTELLECT:
-		if (NewValue < 0.f)	_Stats.Intellect = 0;
-		else				_Stats.Intellect = FMath::RoundToInt(NewValue);
+		if (NewValue < 0.f)	_BaseStats.Intellect = 0;
+		else				_BaseStats.Intellect = FMath::RoundToInt(NewValue);
 		break;
 		
 	case EVitalityCategories::ASTUTENESS:
-		if (NewValue < 0.f)	_Stats.Astuteness = 0;
-		else				_Stats.Astuteness = FMath::RoundToInt(NewValue);
+		if (NewValue < 0.f)	_BaseStats.Astuteness = 0;
+		else				_BaseStats.Astuteness = FMath::RoundToInt(NewValue);
 		break;
 		
 	case EVitalityCategories::CHARISMA:
-		if (NewValue < 0.f)	_Stats.Charisma = 0;
-		else				_Stats.Charisma = FMath::RoundToInt(NewValue);
+		if (NewValue < 0.f)	_BaseStats.Charisma = 0;
+		else				_BaseStats.Charisma = FMath::RoundToInt(NewValue);
 		break;
 		
 	default:
@@ -923,11 +1007,7 @@ void UVitalityComponent::SetCombatState(ECombatState CombatState)
 void UVitalityComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
 	InitSubsystems( IsValid( Cast<ACharacter>(GetOwner()) ) );
-
-	ReloadFromSaveFile();
-	
 }
 
 void UVitalityComponent::TickStamina()
@@ -1075,17 +1155,12 @@ void UVitalityComponent::TickEffects()
 	
 }
 
-void UVitalityComponent::ReloadFromSaveFile()
+void UVitalityComponent::TickManager()
 {
-	UE_LOG(LogTemp, Warning, TEXT("%s(%s): Reload saved settings from file NOT IMPLEMENTED!"),
-		*GetName(), GetOwner()->HasAuthority()?TEXT("SERVER"):TEXT("CLIENT"));
 }
 
 void UVitalityComponent::InitSubsystems(bool isCharacter)
 {
-
-	if (!GetOwner()->HasAuthority()) return;
-
 	// Character-Only Initialization
 	if (isCharacter)
 	{
@@ -1122,18 +1197,23 @@ void UVitalityComponent::InitSubsystems(bool isCharacter)
 
 	// Set up timers
 
+	if (mStaminaTimer.IsValid()) mStaminaTimer.Invalidate();
 	FTimerDelegate staminaDelegate; staminaDelegate.BindUObject(this, &UVitalityComponent::TickStamina);
 	InitializeTimer(mStaminaTimer, staminaDelegate);
 	
+	if (mHealthTimer.IsValid()) mHealthTimer.Invalidate();
 	FTimerDelegate healthDelegate; healthDelegate.BindUObject(this, &UVitalityComponent::TickHealth);
 	InitializeTimer(mHealthTimer, healthDelegate);
 	
+	if (mCaloriesTimer.IsValid()) mCaloriesTimer.Invalidate();
 	FTimerDelegate caloriesDelegate; caloriesDelegate.BindUObject(this, &UVitalityComponent::TickCalories);
 	InitializeTimer(mCaloriesTimer, caloriesDelegate);
 	
+	if (mHydrationTimer.IsValid()) mHydrationTimer.Invalidate();
 	FTimerDelegate hydrationDelegate; hydrationDelegate.BindUObject(this, &UVitalityComponent::TickHydration);
 	InitializeTimer(mHydrationTimer, hydrationDelegate);
 	
+	if (mEffectsTimer.IsValid()) mEffectsTimer.Invalidate();
 	FTimerDelegate effectsDelegate; effectsDelegate.BindUObject(this, &UVitalityComponent::TickEffects);
 	InitializeTimer(mEffectsTimer, effectsDelegate);
 	

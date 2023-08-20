@@ -62,6 +62,10 @@ public: // public functions
 	
 	UVitalityComponent();
 	virtual void OnComponentCreated() override;
+	
+	// Initializes the system, based on whether it's a character (true)
+	// or an inanimate object (false).
+	void InitSubsystems(bool isCharacter = true);
 
 	// SERVER - Called whenever a stat's value is changed
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnStatModified OnStatModified;
@@ -104,24 +108,32 @@ public: // public functions
 	UFUNCTION(BlueprintPure)
 	bool IsSprinting() const { return mIsSprinting; }
 
-	UFUNCTION(BlueprintPure) int Strength() const { return _Stats.Strength; } // Quick Accessor
-	UFUNCTION(BlueprintPure) int Agility() const { return _Stats.Agility; } // Quick Accessor
-	UFUNCTION(BlueprintPure) int Fortitude() const { return _Stats.Fortitude; } // Quick Accessor
-	UFUNCTION(BlueprintPure) int Intellect() const { return _Stats.Intellect; } // Quick Accessor
-	UFUNCTION(BlueprintPure) int Astuteness() const { return _Stats.Astuteness; } // Quick Accessor
-	UFUNCTION(BlueprintPure) int Charisma() const { return _Stats.Charisma; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int GetStrength() const { return _BaseStats.Strength; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int GetAgility() const { return _BaseStats.Agility; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int GetFortitude() const { return _BaseStats.Fortitude; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int GetIntellect() const { return _BaseStats.Intellect; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int GetAstuteness() const { return _BaseStats.Astuteness; } // Quick Accessor
+	UFUNCTION(BlueprintPure) int GetCharisma() const { return _BaseStats.Charisma; } // Quick Accessor
 
 	UFUNCTION(BlueprintCallable) void SetTotalResistanceValue(EDamageType DamageEnum, int NewValue = 0);
-	UFUNCTION(BlueprintCallable) void AddResistance(EDamageType DamageEnum, int AddValue = 0);
-	UFUNCTION(BlueprintCallable) void RemoveResistance(EDamageType DamageEnum, int RemoveValue = 0);
+	UFUNCTION(BlueprintCallable) void AddNaturalResistance(EDamageType DamageEnum, int AddValue = 0);
+	UFUNCTION(BlueprintCallable) void RemoveNaturalResistance(EDamageType DamageEnum, int RemoveValue = 0);
+	UFUNCTION(BlueprintCallable) void AddGearResistance(EDamageType DamageEnum, int AddValue = 0);
+	UFUNCTION(BlueprintCallable) void RemoveGearResistance(EDamageType DamageEnum, int RemoveValue = 0);
+	UFUNCTION(BlueprintCallable) int CalculateAffectDamageResists() const;
 	UFUNCTION(BlueprintPure) int GetResistance(EDamageType DamageEnum = EDamageType::ADMIN) const;
 
 	UFUNCTION(BlueprintCallable) void SetTotalDamageBonus(EDamageType DamageEnum, int NewValue = 0);
-	UFUNCTION(BlueprintCallable) void AddDamageBonus(EDamageType DamageEnum, int AddValue = 0);
-	UFUNCTION(BlueprintCallable) void RemoveDamageBonus(EDamageType DamageEnum, int RemoveValue = 0);
+	UFUNCTION(BlueprintCallable) void AddNaturalDamageBonus(EDamageType DamageEnum, int AddValue = 0);
+	UFUNCTION(BlueprintCallable) void RemoveNaturalDamageBonus(EDamageType DamageEnum, int RemoveValue = 0);
+	UFUNCTION(BlueprintCallable) void AddGearDamageBonus(EDamageType DamageEnum, int AddValue = 0);
+	UFUNCTION(BlueprintCallable) void RemoveGearDamageBonus(EDamageType DamageEnum, int RemoveValue = 0);
+	UFUNCTION(BlueprintCallable) int CalculateAffectDamageBonuses() const;
 	UFUNCTION(BlueprintPure) int GetDamageBonus(EDamageType DamageEnum = EDamageType::ADMIN) const;
 	
-	UFUNCTION(BlueprintPure) float GetVitalityStat(EVitalityCategories VitalityStat, float &StatValue, float &StatMax);
+	UFUNCTION(BlueprintPure) float GetVitalityStat(EVitalityCategories VitalityStat,
+			float &StatValue, float &StatMax) const;
+	
 	float GetVitalityStat(EVitalityCategories VitalityStat);
 	UFUNCTION(BlueprintCallable) float SetVitalityStat(EVitalityCategories VitalityStat, float NewValue = 100.f);
 
@@ -173,17 +185,10 @@ protected: // protected functions
 	// Handles effects wearing off
 	virtual void TickEffects();
 
-	// Called after InitSubsystems is complete, reloading saved values.
-	virtual void ReloadFromSaveFile();
-
 private: // private functions
 	
 	// Manages Tick Timers
 	void TickManager();
-	
-	// Initializes the system, based on whether it's a character (true)
-	// or an inanimate object (false).
-	void InitSubsystems(bool isCharacter = true);
 
 	// Disables the sprinting mechanic and allows stamina regeneration
 	void StopSprinting();
@@ -302,7 +307,9 @@ private: // private members
 	// Mutex Lock for thread safe operation
 	FRWLock mMutexLock;
 
-	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CurrentEffects) TArray<FStVitalityEffects> mCurrentEffects;
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CurrentEffects)
+	TArray<FStVitalityEffects> mCurrentEffects;
+	
 	TArray<FStVitalityEffects> mEffectsAddQueue;
 	TArray<int> mEffectsRemoveQueue;
 	
@@ -352,6 +359,13 @@ private: // private members
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_MagicValue) float mMagicValue		= 1.f;	// Current Magic/mana
 	UPROPERTY(Replicated) float mMagicMax		= 1.f;  // Maximum Magic/mana
 
-	UPROPERTY(Replicated) FStCharacterStats _Stats = FStCharacterStats(); 
+	// Natural stats of the character with progression
+	UPROPERTY(Replicated) FStCharacterStats _BaseStats = FStCharacterStats();
+
+	// Stats added by equipment in use
+	UPROPERTY(Replicated) FStCharacterStats _GearStats = FStCharacterStats();
+
+	// Stats added by affects currently active
+	UPROPERTY(Replicated) FStCharacterStats _AffectStats = FStCharacterStats(); 
 	
 };
