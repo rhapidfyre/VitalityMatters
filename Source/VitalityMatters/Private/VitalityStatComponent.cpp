@@ -12,63 +12,6 @@ UVitalityStatComponent::UVitalityStatComponent()
 }
 
 /**
- * @brief Returns the current value of the requested vitality stat
- * @param VitalityStat Stat Enum to return
- * @return The current value of the requested vitality stat
- */
-float UVitalityStatComponent::GetVitalityStat(EVitalityStat VitalityStat) const
-{
-	switch (VitalityStat)
-	{
-	case EVitalityStat::STRENGTH:	return _Strength;
-	case EVitalityStat::AGILITY:	return _Agility;
-	case EVitalityStat::FORTITUDE: 	return _Fortitude;
-	case EVitalityStat::INTELLECT: 	return _Intellect;
-	case EVitalityStat::ASTUTENESS: return _Astuteness;
-	default:						break;
-	}
-	return _Charisma;
-}
-
-/**
- * @brief Sets the given Vitality Stat to the exact value given
- * @param VitalityStat Stat Enum to be affected
- * @param NewValue The new value (exact) for the given Stat Enum
- */
-void UVitalityStatComponent::SetVitalityStat(const EVitalityStat VitalityStat, float NewValue)
-{
-	switch (VitalityStat)
-	{
-	case EVitalityStat::STRENGTH:   SetStrength(NewValue);   break;
-	case EVitalityStat::AGILITY:    SetAgility(NewValue);    break;
-	case EVitalityStat::FORTITUDE:  SetFortitude(NewValue);  break;
-	case EVitalityStat::INTELLECT:  SetIntellect(NewValue);  break;
-	case EVitalityStat::ASTUTENESS: SetAstuteness(NewValue); break;
-	case EVitalityStat::CHARISMA:   SetCharisma(NewValue);   break;
-	default: break;
-	}
-}
-
-/**
- * @brief Takes the current value of the given stat and modifies it
- * @param VitalityStat Stat Enum to affect
- * @param AddValue The amount to add (or remove)
- */
-void UVitalityStatComponent::ModifyVitalityStat(EVitalityCategory VitalityStat, float AddValue)
-{
-	switch (VitalityStat)
-	{
-	case EVitalityStat::STRENGTH:   SetStrength(GetStrength() + AddValue);     break;
-	case EVitalityStat::AGILITY:    SetAgility(GetAgility() + AddValue);       break;
-	case EVitalityStat::FORTITUDE:  SetFortitude(GetFortitude() + AddValue);   break;
-	case EVitalityStat::INTELLECT:  SetIntellect(GetIntellect() + AddValue);   break;
-	case EVitalityStat::ASTUTENESS: SetAstuteness(GetAstuteness() + AddValue); break;
-	case EVitalityStat::CHARISMA:   SetCharisma(GetCharisma() + AddValue);     break;
-	default: break;
-	}
-}
-
-/**
  * @brief Sets the given damage resistance as natural resistance enum to the given value
  * @param DamageEnum The enum specifying the damage type
  * @param NewValue The new actual value of the damage resistance

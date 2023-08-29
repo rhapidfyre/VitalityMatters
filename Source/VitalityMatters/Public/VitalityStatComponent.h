@@ -24,15 +24,6 @@ public:
 
 	UVitalityStatComponent();
 	
-	UFUNCTION(BlueprintPure)
-	float GetVitalityStat(EVitalityStat VitalityStat) const;
-	
-	UFUNCTION(BlueprintCallable)
-	void SetVitalityStat(const EVitalityStat VitalityStat, float NewValue = 100.f);
-
-	UFUNCTION(BlueprintCallable)
-	void ModifyVitalityStat(EVitalityCategory VitalityStat, float AddValue = 0.f);
-	
 	UFUNCTION(BlueprintPure) float GetTotalResistance(EDamageType DamageEnum = EDamageType::ADMIN) const;
 	UFUNCTION(BlueprintPure) float GetTotalDamageBonus(EDamageType DamageEnum = EDamageType::ADMIN) const;
 
