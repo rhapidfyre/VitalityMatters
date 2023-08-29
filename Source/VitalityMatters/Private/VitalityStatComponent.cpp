@@ -69,8 +69,7 @@ void UVitalityStatComponent::ModifyVitalityStat(EVitalityCategory VitalityStat, 
 }
 
 /**
- * @brief Sets the natural resistance value of the actor.
- *			If it does not exist, it will be added.
+ * @brief Sets the given damage resistance as natural resistance enum to the given value
  * @param DamageEnum The enum specifying the damage type
  * @param NewValue The new actual value of the damage resistance
  * @return True if set was successful. False otherwise.
@@ -80,81 +79,172 @@ bool UVitalityStatComponent::SetNaturalResistanceValue(EDamageType DamageEnum, i
 	return SetNewDamageResistanceValue(&_BaseStats, DamageEnum, NewValue);
 }
 
+/**
+ * @brief Sets the given damage resistance as gear resistance enum to the given value
+ * @param DamageEnum The enum specifying the damage type
+ * @param NewValue The new value to set the gear based resistance to
+ * @return True on success, false otherwise
+ */
 bool UVitalityStatComponent::SetGearResistanceValue(EDamageType DamageEnum, int NewValue)
 {
 	return SetNewDamageResistanceValue(&_GearStats, DamageEnum, NewValue);
 }
 
+/**
+* @brief Sets the given damage resistance as magical resistance with the given value
+ * @param DamageEnum The enum specifying the damage type
+ * @param NewValue The new value to set the magic-based resistance to
+ * @return True on success, false otherwise
+ */
 bool UVitalityStatComponent::SetMagicalResistanceValue(EDamageType DamageEnum, int NewValue)
 {
 	return SetNewDamageResistanceValue(&_ModifiedStats, DamageEnum, NewValue);
 }
 
+/**
+* @brief Sets the given damage resistance as other-type resistance with the given value
+ * @param DamageEnum The enum specifying the damage type
+ * @param NewValue The new value to set the other resistance to
+ * @return True on success, false otherwise
+ */
 bool UVitalityStatComponent::SetOtherResistanceValue(EDamageType DamageEnum, int NewValue)
 {
 	return SetNewDamageResistanceValue(&_OtherStats, DamageEnum, NewValue);
 }
 
+/**
+ * @brief 
+ * @param DamageEnum The damage enum to get the natural resistance for
+ * @return Returns the resistance value, or zero if it does not exist
+ */
 float UVitalityStatComponent::GetNaturalResistanceValue(EDamageType DamageEnum) const
 {
 	return GetDamageResistanceValue(&_BaseStats, DamageEnum);
 }
 
+/**
+ * @brief 
+ * @param DamageEnum The damage enum to get the gear resistance for
+ * @return Returns the resistance value, or zero if it does not exist
+ */
 float UVitalityStatComponent::GetGearResistanceValue(EDamageType DamageEnum) const
 {
 	return GetDamageResistanceValue(&_GearStats, DamageEnum);
 }
 
+/**
+ * @brief 
+ * @param DamageEnum The damage enum to get the magical resistance for
+ * @return Returns the resistance value, or zero if it does not exist
+ */
 float UVitalityStatComponent::GetMagicalResistanceValue(EDamageType DamageEnum) const
 {
 	return GetDamageResistanceValue(&_ModifiedStats, DamageEnum);
 }
 
+/**
+ * @brief 
+ * @param DamageEnum The damage enum to get the other-type resistance for
+ * @return Returns the resistance value, or zero if it does not exist
+ */
 float UVitalityStatComponent::GetOtherResistanceValue(EDamageType DamageEnum) const
 {
 	return GetDamageResistanceValue(&_OtherStats, DamageEnum);
 }
 
+/**
+* @brief Sets the given damage bonus as natural bonus with the given value
+ * @param DamageEnum The enum specifying the damage bonus type
+ * @param NewValue The new value to set the bonus to
+ * @return True on success, false otherwise
+ */
 bool UVitalityStatComponent::SetNaturalDamageBonusValue(EDamageType DamageEnum, int NewValue)
 {
 	return SetNewDamageBonusValue(&_BaseStats, DamageEnum, NewValue);
 }
 
+/**
+* @brief Sets the given damage bonus as gear bonus with the given value
+ * @param DamageEnum The enum specifying the damage bonus type
+ * @param NewValue The new value to set the bonus to
+ * @return True on success, false otherwise
+ */
 bool UVitalityStatComponent::SetGearDamageBonusValue(EDamageType DamageEnum, int NewValue)
 {
 	return SetNewDamageBonusValue(&_GearStats, DamageEnum, NewValue);
 }
 
+
+/**
+* @brief Sets the given damage bonus as magic bonus with the given value
+ * @param DamageEnum The enum specifying the damage bonus type
+ * @param NewValue The new value to set the bonus to
+ * @return True on success, false otherwise
+ */
 bool UVitalityStatComponent::SetMagicalDamageBonusValue(EDamageType DamageEnum, int NewValue)
 {
 	return SetNewDamageBonusValue(&_ModifiedStats, DamageEnum, NewValue);
 }
 
+
+/**
+* @brief Sets the given damage bonus as other-type bonus with the given value
+ * @param DamageEnum The enum specifying the damage bonus type
+ * @param NewValue The new value to set the bonus to
+ * @return True on success, false otherwise
+ */
 bool UVitalityStatComponent::SetOtherDamageBonusValue(EDamageType DamageEnum, int NewValue)
 {
 	return SetNewDamageBonusValue(&_OtherStats, DamageEnum, NewValue);
 }
 
+/**
+ * @brief Gets the natural damage bonus value for the requested enum
+ * @param DamageEnum The damage enum to get the natural damage bonus for
+ * @return Returns the damage bonus value, or zero if it does not exist
+ */
 float UVitalityStatComponent::GetNaturalDamageBonusValue(EDamageType DamageEnum) const
 {
 	return GetDamageBonusValue(&_BaseStats, DamageEnum);
 }
 
+/**
+ * @brief Gets the gear damage bonus value for the requested enum
+ * @param DamageEnum The damage enum to get the gear damage bonus for
+ * @return Returns the damage bonus value, or zero if it does not exist
+ */
 float UVitalityStatComponent::GetGearDamageBonusValue(EDamageType DamageEnum) const
 {
 	return GetDamageBonusValue(&_GearStats, DamageEnum);
 }
 
+
+/**
+ * @brief Gets the magic damage bonus value for the requested enum
+ * @param DamageEnum The damage enum to get the magic damage bonus for
+ * @return Returns the damage bonus value, or zero if it does not exist
+ */
 float UVitalityStatComponent::GetMagicalDamageBonusValue(EDamageType DamageEnum) const
 {
 	return GetDamageBonusValue(&_ModifiedStats, DamageEnum);
 }
 
+
+/**
+ * @brief Gets the other-type damage bonus value for the requested enum
+ * @param DamageEnum The damage enum to get the other-type damage bonus for
+ * @return Returns the damage bonus value, or zero if it does not exist
+ */
 float UVitalityStatComponent::GetOtherDamageBonusValue(EDamageType DamageEnum) const
 {
 	return GetDamageBonusValue(&_OtherStats, DamageEnum);
 }
 
+/**
+ * @brief Gets the total damage resistance across natural, gear, magical and other-type
+ * @param DamageEnum The damage enum to get the total damage resistance for
+ * @return Returns the total damage resistance value across all arrays
+ */
 float UVitalityStatComponent::GetTotalResistance(EDamageType DamageEnum) const
 {
 	return (
@@ -163,6 +253,11 @@ float UVitalityStatComponent::GetTotalResistance(EDamageType DamageEnum) const
 	);
 }
 
+/**
+ * @brief Gets the total damage bonus across natural, gear, magical and other-type
+ * @param DamageEnum The damage enum to get the total damage bonus for
+ * @return Returns the total damage bonus value across all arrays
+ */
 float UVitalityStatComponent::GetTotalDamageBonus(EDamageType DamageEnum) const
 {
 	return (
@@ -171,170 +266,97 @@ float UVitalityStatComponent::GetTotalDamageBonus(EDamageType DamageEnum) const
 	);
 }
 
-void UVitalityStatComponent::SetStrength(float NewValue)
+/**
+ * @brief Sets the value of the natural core stat given
+ * @param StatEnum The stat enum to be set
+ * @param NewValue The new value to set the natural strength to
+ */
+bool UVitalityStatComponent::SetNaturalCoreStat(EVitalityStat StatEnum, float NewValue)
 {
-	SetNewCoreStatsValue(&_BaseStats, EVitalityStat::STRENGTH, NewValue);
+	return SetNewCoreStatsValue(&_BaseStats, StatEnum, NewValue);
 }
 
-float UVitalityStatComponent::IncreaseStrength(float ValueAffected)
+/**
+ * @brief Sets the value of the gear-based core stat given
+ * @param StatEnum The stat enum to be set
+ * @param NewValue The new value to set the gear-based strength to
+ */
+bool UVitalityStatComponent::SetGearCoreStat(EVitalityStat StatEnum, float NewValue)
 {
-	return SetNewCoreStatsValue(&_BaseStats, EVitalityStat::STRENGTH,
-		abs(ValueAffected) + GetCoreStatValue(&_BaseStats, EVitalityStat::STRENGTH));
+	return SetNewCoreStatsValue(&_GearStats, StatEnum, NewValue);
 }
 
-float UVitalityStatComponent::DecreaseStrength(float ValueAffected)
+/**
+ * @brief Sets the value of the magic-based core stat given
+ * @param StatEnum The stat enum to be set
+ * @param NewValue The new value to set the magical strength to
+ */
+bool UVitalityStatComponent::SetMagicalCoreStat(EVitalityStat StatEnum, float NewValue)
 {
-	return SetNewCoreStatsValue(&_BaseStats, EVitalityStat::STRENGTH,
-		abs(ValueAffected) - GetCoreStatValue(&_BaseStats, EVitalityStat::STRENGTH));
+	return SetNewCoreStatsValue(&_ModifiedStats, StatEnum, NewValue);
 }
 
-float UVitalityStatComponent::GetStrength() const
+/**
+ * @brief Sets the value of the other-type core stat given
+ * @param StatEnum The stat enum to be set
+ * @param NewValue The new value to set the other-type strength to
+ */
+bool UVitalityStatComponent::SetOtherCoreStat(EVitalityStat StatEnum, float NewValue)
+{
+	return SetNewCoreStatsValue(&_OtherStats, StatEnum, NewValue);
+}
+
+/**
+ * @brief Returns the total of all stats (natural, gear, magic, other) with the given enum
+ * @param StatEnum The vitality stat to get the value for
+ * @return The total value, or zero, if the enum is not used.
+ */
+float UVitalityStatComponent::GetTotalCoreStat(EVitalityStat StatEnum) const
 {
 	return (
-		GetCoreStatValue(&_BaseStats,		EVitalityStat::STRENGTH)
-	  + GetCoreStatValue(&_GearStats,		EVitalityStat::STRENGTH)
-	  + GetCoreStatValue(&_ModifiedStats,	EVitalityStat::STRENGTH)
-	  + GetCoreStatValue(&_OtherStats,		EVitalityStat::STRENGTH)
+		GetCoreStatValue(&_BaseStats, StatEnum) + GetCoreStatValue(&_GearStats, StatEnum)
+	  + GetCoreStatValue(&_ModifiedStats, StatEnum) + GetCoreStatValue(&_OtherStats, StatEnum)
 	);
 }
 
-
-void UVitalityStatComponent::SetAgility(float NewValue)
+/**
+ * @brief Returns the total of the given natural core stat enum
+ * @param StatEnum The vitality stat to get the value for
+ * @return The value of the natural core stat, or zero if not set or used.
+ */
+float UVitalityStatComponent::GetNaturalCoreStat(EVitalityStat StatEnum) const
 {
-	SetNewCoreStatsValue(&_BaseStats, EVitalityStat::AGILITY, NewValue);
+	return GetCoreStatValue(&_BaseStats, StatEnum);
 }
 
-float UVitalityStatComponent::IncreaseAgility(float ValueAffected)
+/**
+ * @brief Returns the total of the given gear-based core stat enum
+ * @param StatEnum The vitality stat to get the value for
+ * @return The value of the gear-based core stat, or zero if not set or used.
+ */
+float UVitalityStatComponent::GetGearCoreStat(EVitalityStat StatEnum) const
 {
-	return SetNewCoreStatsValue(&_BaseStats, EVitalityStat::AGILITY,
-		abs(ValueAffected) + GetCoreStatValue(&_BaseStats, EVitalityStat::AGILITY));
+	return GetCoreStatValue(&_GearStats, StatEnum);
 }
 
-float UVitalityStatComponent::DecreaseAgility(float ValueAffected)
+/**
+ * @brief Returns the total of the given magical core stat enum
+ * @param StatEnum The vitality stat to get the value for
+ * @return The value of the magical core stat, or zero if not set or used.
+ */
+float UVitalityStatComponent::GetMagicalCoreStat(EVitalityStat StatEnum) const
 {
-	return SetNewCoreStatsValue(&_BaseStats, EVitalityStat::AGILITY,
-		abs(ValueAffected) - GetCoreStatValue(&_BaseStats, EVitalityStat::AGILITY));
+	return GetCoreStatValue(&_ModifiedStats, StatEnum);
 }
 
-float UVitalityStatComponent::GetAgility() const
+/**
+ * @brief Returns the total of the given other-type core stat enum
+ * @param StatEnum The vitality stat to get the value for
+ * @return The value of the other-type core stat, or zero if not set or used.
+ */
+float UVitalityStatComponent::GetOtherCoreStat(EVitalityStat StatEnum) const
 {
-	return (
-		GetCoreStatValue(&_BaseStats,		EVitalityStat::AGILITY)
-	  + GetCoreStatValue(&_GearStats,		EVitalityStat::AGILITY)
-	  + GetCoreStatValue(&_ModifiedStats,	EVitalityStat::AGILITY)
-	  + GetCoreStatValue(&_OtherStats,		EVitalityStat::AGILITY)
-	);
-}
-
-
-bool UVitalityStatComponent::SetFortitude(float NewValue)
-{
-	return SetNewCoreStatsValue(&_BaseStats, EVitalityStat::AGILITY, NewValue);
-}
-
-float UVitalityStatComponent::IncreaseFortitude(float ValueAffected)
-{
-	return SetNewCoreStatsValue(&_BaseStats, EVitalityStat::AGILITY,
-		abs(ValueAffected) + GetCoreStatValue(&_BaseStats, EVitalityStat::AGILITY));
-}
-
-float UVitalityStatComponent::DecreaseFortitude(float ValueAffected)
-{
-	return SetNewCoreStatsValue(&_BaseStats, EVitalityStat::AGILITY,
-		abs(ValueAffected) - GetCoreStatValue(&_BaseStats, EVitalityStat::AGILITY));
-}
-
-float UVitalityStatComponent::GetFortitude() const
-{
-	return (
-		GetCoreStatValue(&_BaseStats,		EVitalityStat::FORTITUDE)
-	  + GetCoreStatValue(&_GearStats,		EVitalityStat::FORTITUDE)
-	  + GetCoreStatValue(&_ModifiedStats,	EVitalityStat::FORTITUDE)
-	  + GetCoreStatValue(&_OtherStats,		EVitalityStat::FORTITUDE)
-	);
-}
-
-
-bool UVitalityStatComponent::SetIntellect(float NewValue)
-{
-	
-}
-
-float UVitalityStatComponent::IncreaseIntellect(float ValueAffected)
-{
-	
-}
-
-float UVitalityStatComponent::DecreaseIntellect(float ValueAffected)
-{
-	
-}
-
-float UVitalityStatComponent::GetIntellect() const
-{
-	return (
-		GetCoreStatValue(&_BaseStats,		EVitalityStat::INTELLECT)
-	  + GetCoreStatValue(&_GearStats,		EVitalityStat::INTELLECT)
-	  + GetCoreStatValue(&_ModifiedStats,	EVitalityStat::INTELLECT)
-	  + GetCoreStatValue(&_OtherStats,		EVitalityStat::INTELLECT)
-	);
-}
-
-
-bool UVitalityStatComponent::SetAstuteness(float NewValue)
-{
-	const float OldValue = _Astuteness;
-	_Astuteness = NewValue;
-	OnStatModified.Broadcast(EVitalityStat::ASTUTENESS, OldValue, _Astuteness);
-}
-
-float UVitalityStatComponent::IncreaseAstuteness(float ValueAffected)
-{
-	const float OldValue = _Astuteness;
-	_Astuteness += abs(ValueAffected);
-	OnStatModified.Broadcast(EVitalityStat::ASTUTENESS, OldValue, _Astuteness);
-	return _Astuteness;
-}
-
-float UVitalityStatComponent::DecreaseAstuteness(float ValueAffected)
-{
-	const float OldValue = _Astuteness;
-	_Astuteness -= abs(ValueAffected);
-	OnStatModified.Broadcast(EVitalityStat::ASTUTENESS, OldValue, _Astuteness);
-	return _Astuteness;
-}
-
-float UVitalityStatComponent::GetAstuteness() const
-{
-	return (
-		GetCoreStatValue(&_BaseStats,		EVitalityStat::ASTUTENESS)
-	  + GetCoreStatValue(&_GearStats,		EVitalityStat::ASTUTENESS)
-	  + GetCoreStatValue(&_ModifiedStats,	EVitalityStat::ASTUTENESS)
-	  + GetCoreStatValue(&_OtherStats,		EVitalityStat::ASTUTENESS)
-	);
-}
-
-
-bool UVitalityStatComponent::SetCharisma(float NewValue)
-{
-}
-
-float UVitalityStatComponent::IncreaseCharisma(float ValueAffected)
-{
-}
-
-float UVitalityStatComponent::DecreaseCharisma(float ValueAffected)
-{
-}
-
-float UVitalityStatComponent::GetCharisma() const
-{
-	return (
-	    GetCoreStatValue(&_BaseStats,		EVitalityStat::CHARISMA)
-	  + GetCoreStatValue(&_GearStats,		EVitalityStat::CHARISMA)
-	  + GetCoreStatValue(&_ModifiedStats,	EVitalityStat::CHARISMA)
-	  + GetCoreStatValue(&_OtherStats,		EVitalityStat::CHARISMA)
-	);
+	return GetCoreStatValue(&_OtherStats, StatEnum);
 }
 
 void UVitalityStatComponent::BeginPlay()
@@ -358,6 +380,12 @@ void UVitalityStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME(UVitalityStatComponent, _OtherStats);
 }
 
+/**
+ * @brief Finds an existing index in the damage map array that matches the damage enum given
+ * @param ArrayReference THe array to be traversed
+ * @param DamageEnum The damage enum for the resistance map being sought
+ * @return A pointer to the actual damage map
+ */
 FStVitalityDamageMap* UVitalityStatComponent::FindDamageResistanceMap(
 		const FStVitalityStats& ArrayReference, const EDamageType DamageEnum) const
 {
@@ -371,6 +399,12 @@ FStVitalityDamageMap* UVitalityStatComponent::FindDamageResistanceMap(
 	return nullptr;
 }
 
+/**
+ * @brief Finds an existing index in the damage map array that matches the damage enum given
+ * @param ArrayReference THe array to be traversed
+ * @param DamageEnum The damage enum for the bonus map being sought
+ * @return A pointer to the actual damage map
+ */
 FStVitalityDamageMap* UVitalityStatComponent::FindDamageBonusMap(
 		const FStVitalityStats& ArrayReference, const EDamageType DamageEnum) const
 {
@@ -384,6 +418,12 @@ FStVitalityDamageMap* UVitalityStatComponent::FindDamageBonusMap(
 	return nullptr;
 }
 
+/**
+ * @brief Finds an existing index in the core stat array that matches the stat enum given
+ * @param ArrayReference THe array to be traversed
+ * @param StatEnum The core stat being sought
+ * @return A pointer to the actual stat map
+ */
 FStVitalityStatMap* UVitalityStatComponent::FindCoreStatsMap(
 	const FStVitalityStats& ArrayReference, const EVitalityStat StatEnum) const
 {
@@ -397,6 +437,13 @@ FStVitalityStatMap* UVitalityStatComponent::FindCoreStatsMap(
 	return nullptr;
 }
 
+/**
+ * @brief Sets the damage resistance enum to the given value for the specified map
+ * @param StatsMap The stats map to be used (natural, gear, magical, other)
+ * @param DamageEnum The damage resistance enum to set or modify
+ * @param NewValue The new value for the given enum of the given map
+ * @return True on success, false otherwise
+ */
 bool UVitalityStatComponent::SetNewDamageResistanceValue(
 	FStVitalityStats* StatsMap, const EDamageType DamageEnum, const int NewValue)
 {
@@ -418,6 +465,13 @@ bool UVitalityStatComponent::SetNewDamageResistanceValue(
 	return false;
 }
 
+/**
+ * @brief Sets the damage bonus enum to the given value for the specified map
+ * @param StatsMap The stats map to be used (natural, gear, magical, other)
+ * @param DamageEnum The damage bonus enum to set or modify
+ * @param NewValue The new value for the given enum of the given map
+ * @return True on success, false otherwise
+ */
 bool UVitalityStatComponent::SetNewDamageBonusValue(
 	FStVitalityStats* StatsMap, const EDamageType DamageEnum, const int NewValue)
 {
@@ -439,8 +493,16 @@ bool UVitalityStatComponent::SetNewDamageBonusValue(
 	return false;
 }
 
-bool UVitalityStatComponent::SetNewCoreStatsValue(FStVitalityStats* StatsMap, const EVitalityStat StatEnum,
-	const int NewValue)
+
+/**
+ * @brief Sets the core stat to the given value for the specified map
+ * @param StatsMap The stats map to be used (natural, gear, magical, other)
+ * @param StatEnum The core stat enum to set or modify
+ * @param NewValue The new value for the given enum of the given map
+ * @return True on success, false otherwise
+ */
+bool UVitalityStatComponent::SetNewCoreStatsValue(FStVitalityStats* StatsMap,
+	const EVitalityStat StatEnum, const int NewValue)
 {
 	if (StatsMap != nullptr)
 	{
@@ -460,6 +522,12 @@ bool UVitalityStatComponent::SetNewCoreStatsValue(FStVitalityStats* StatsMap, co
 	return false;
 }
 
+/**
+ * @brief Gets the damage resistance value of the referenced stats map
+ * @param StatsMap The stats map to be traversed
+ * @param DamageEnum The damage enum to look for
+ * @return The value of the enum. Returns zero if unused or unset.
+ */
 float UVitalityStatComponent::GetDamageResistanceValue(
 	const FStVitalityStats* StatsMap, const EDamageType DamageEnum) const
 {
@@ -469,6 +537,12 @@ float UVitalityStatComponent::GetDamageResistanceValue(
 	return 0.f;
 }
 
+/**
+ * @brief Gets the damage bonus value of the referenced stats map
+ * @param StatsMap The stats map to be traversed
+ * @param DamageEnum The damage bonus enum to look for
+ * @return The value of the enum. Returns zero if unused or unset.
+ */
 float UVitalityStatComponent::GetDamageBonusValue(
 	const FStVitalityStats* StatsMap, const EDamageType DamageEnum) const
 {
@@ -478,7 +552,14 @@ float UVitalityStatComponent::GetDamageBonusValue(
 	return 0.f;
 }
 
-float UVitalityStatComponent::GetCoreStatValue(const FStVitalityStats* StatsMap, const EVitalityStat StatEnum) const
+/**
+ * @brief Gets the core stat value of the referenced stats map
+ * @param StatsMap The stats map to be traversed
+ * @param StatEnum The core stat enum to look for
+ * @return The value of the enum. Returns zero if unused or unset.
+ */
+float UVitalityStatComponent::GetCoreStatValue(
+	const FStVitalityStats* StatsMap, const EVitalityStat StatEnum) const
 {
 	const FStVitalityStatMap* DamageMap = FindCoreStatsMap(*StatsMap, StatEnum);
 	if (DamageMap != nullptr)
