@@ -2,6 +2,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "VitalityEffectsComponent.h"
+#include "VitalityStatComponent.h"
+#include "VitalityWelfareComponent.h"
 #include "Components/ActorComponent.h"
 #include "lib/StatusEffects.h"
 #include "lib/VitalityData.h"
@@ -33,11 +36,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnEffectModified,		int, UniqueId, bool, EffectActive);
 
-// Called whenever any stat changes
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FOnStatModified,		EVitalityCategories, VitalityStat,
-	float, OldValue,		float, NewValue);
-
 // Called whenever a damage bonus has changed
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnDamageBonusModified,	EDamageType, DamageBonusType, int, NewTotal);
@@ -66,9 +64,6 @@ public: // public functions
 	// Initializes the system, based on whether it's a character (true)
 	// or an inanimate object (false).
 	void InitSubsystems(bool isCharacter = true);
-
-	// SERVER - Called whenever a stat's value is changed
-	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnStatModified OnStatModified;
 
 	// SERVER - Called whenever damage is taken
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events") FOnDamageTaken OnDamageTaken;
@@ -108,36 +103,42 @@ public: // public functions
 	UFUNCTION(BlueprintPure)
 	bool IsSprinting() const { return mIsSprinting; }
 
-	UFUNCTION(BlueprintPure) int GetStrength() const { return _BaseStats.Strength; } // Quick Accessor
-	UFUNCTION(BlueprintPure) int GetAgility() const { return _BaseStats.Agility; } // Quick Accessor
-	UFUNCTION(BlueprintPure) int GetFortitude() const { return _BaseStats.Fortitude; } // Quick Accessor
-	UFUNCTION(BlueprintPure) int GetIntellect() const { return _BaseStats.Intellect; } // Quick Accessor
-	UFUNCTION(BlueprintPure) int GetAstuteness() const { return _BaseStats.Astuteness; } // Quick Accessor
-	UFUNCTION(BlueprintPure) int GetCharisma() const { return _BaseStats.Charisma; } // Quick Accessor
-
-	UFUNCTION(BlueprintCallable) void SetTotalResistanceValue(EDamageType DamageEnum, int NewValue = 0);
+	UFUNCTION(BlueprintCallable) void SetNaturalResistanceValue(EDamageType DamageEnum, int NewValue = 0);
 	UFUNCTION(BlueprintCallable) void AddNaturalResistance(EDamageType DamageEnum, int AddValue = 0);
 	UFUNCTION(BlueprintCallable) void RemoveNaturalResistance(EDamageType DamageEnum, int RemoveValue = 0);
 	UFUNCTION(BlueprintCallable) void AddGearResistance(EDamageType DamageEnum, int AddValue = 0);
 	UFUNCTION(BlueprintCallable) void RemoveGearResistance(EDamageType DamageEnum, int RemoveValue = 0);
-	UFUNCTION(BlueprintCallable) int CalculateAffectDamageResists() const;
 	UFUNCTION(BlueprintPure) int GetResistance(EDamageType DamageEnum = EDamageType::ADMIN) const;
 
-	UFUNCTION(BlueprintCallable) void SetTotalDamageBonus(EDamageType DamageEnum, int NewValue = 0);
+	UFUNCTION(BlueprintCallable) void SetNaturalDamageBonus(EDamageType DamageEnum, int NewValue = 0);
 	UFUNCTION(BlueprintCallable) void AddNaturalDamageBonus(EDamageType DamageEnum, int AddValue = 0);
 	UFUNCTION(BlueprintCallable) void RemoveNaturalDamageBonus(EDamageType DamageEnum, int RemoveValue = 0);
 	UFUNCTION(BlueprintCallable) void AddGearDamageBonus(EDamageType DamageEnum, int AddValue = 0);
 	UFUNCTION(BlueprintCallable) void RemoveGearDamageBonus(EDamageType DamageEnum, int RemoveValue = 0);
-	UFUNCTION(BlueprintCallable) int CalculateAffectDamageBonuses() const;
 	UFUNCTION(BlueprintPure) int GetDamageBonus(EDamageType DamageEnum = EDamageType::ADMIN) const;
-	
-	UFUNCTION(BlueprintPure) float GetVitalityStat(EVitalityCategories VitalityStat,
-			float &StatValue, float &StatMax) const;
-	
-	float GetVitalityStat(EVitalityCategories VitalityStat);
-	UFUNCTION(BlueprintCallable) float SetVitalityStat(EVitalityCategories VitalityStat, float NewValue = 100.f);
 
-	UFUNCTION(BlueprintCallable) float ModifyVitalityStat(EVitalityCategories VitalityStat, float AddValue = 0.f);
+	UFUNCTION(BlueprintCallable) void RecalculateAffectedStats();
+	
+	UFUNCTION(BlueprintPure)
+	float GetVitalityStat(EVitalityStat VitalityStat, float &StatValue, float &StatMax) const;
+	
+	UFUNCTION(BlueprintCallable)
+	float SetVitalityStat(EVitalityStat VitalityStat, float NewValue = 100.f);
+	
+	UFUNCTION(BlueprintPure)
+	float GetVitalityCategory(EVitalityCategory VitalityCategory, float &StatValue, float &StatMax) const;
+	
+	UFUNCTION(BlueprintCallable)
+	float SetVitalityCategory(EVitalityCategory VitalityCategory, float NewValue = 100.f);
+	
+	UFUNCTION(BlueprintCallable)
+	float SetVitalityStatMaximum(EVitalityStat VitalityStat, float NewValueMax = 100.f);
+	
+	UFUNCTION(BlueprintCallable)
+	float SetVitalityCategoryMaximum(EVitalityCategory VitalityCategory, float NewValueMax = 100.f);
+	
+	
+	UFUNCTION(BlueprintCallable) float ModifyVitalityStat(EVitalityCategory VitalityStat, float AddValue = 0.f);
 	UFUNCTION(BlueprintCallable) bool RemoveEffectByUniqueId(int UniqueId = 0);
 	UFUNCTION(BlueprintCallable) bool ApplyEffect(FName EffectName, int StackCount = 1);
 	bool RemoveEffect(FName EffectName, int RemoveCount);
@@ -157,8 +158,7 @@ public: // public functions
 	UFUNCTION(BlueprintPure) FStVitalityEffects GetEffectByUniqueId(int UniqueId);
 	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect);
 	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByBenefit(EEffectsBeneficial BenefitEffect);
-	UFUNCTION(BlueprintPure)
-	bool IsEffectActive(FName EffectName);
+	UFUNCTION(BlueprintPure) bool IsEffectActive(FName EffectName);
 	bool IsEffectActive(EEffectsBeneficial EffectEnum);
 	bool IsEffectActive(EEffectsDetrimental EffectEnum);
 
@@ -300,6 +300,18 @@ public: // public members
 	// Only set during initialization.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Settings")
 	float HungerAtRest = 0.082;
+
+	// Used for managing stats (STR, AGI, FOR, etc)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Actor Components")
+	UVitalityStatComponent* VitalityStats = nullptr;
+
+	// Used for managing stats (STR, AGI, FOR, etc)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Actor Components")
+	UVitalityEffectsComponent* VitalityEffects = nullptr;
+
+	// Used for managing stats (STR, AGI, FOR, etc)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Actor Components")
+	UVitalityWelfareComponent* VitalityWelfare = nullptr;
 	
 
 private: // private members
@@ -358,14 +370,5 @@ private: // private members
 	UFUNCTION(Client, Unreliable) void OnRep_MagicValue();
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_MagicValue) float mMagicValue		= 1.f;	// Current Magic/mana
 	UPROPERTY(Replicated) float mMagicMax		= 1.f;  // Maximum Magic/mana
-
-	// Natural stats of the character with progression
-	UPROPERTY(Replicated) FStCharacterStats _BaseStats = FStCharacterStats();
-
-	// Stats added by equipment in use
-	UPROPERTY(Replicated) FStCharacterStats _GearStats = FStCharacterStats();
-
-	// Stats added by affects currently active
-	UPROPERTY(Replicated) FStCharacterStats _AffectStats = FStCharacterStats(); 
 	
 };

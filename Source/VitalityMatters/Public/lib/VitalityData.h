@@ -5,34 +5,62 @@
 #include "CoreMinimal.h"
 #include "VitalityEnums.h"
 #include "UObject/Object.h"
+#include "Delegates/Delegate.h"
 #include "VitalityData.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnCoreStatUpdated, EVitalityStat, CoreStat, float, OldValue, float, NewValue);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnDamageBonusUpdated, EDamageType, DamageEnum, float, OldValue, float, NewValue);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnDamageResistanceUpdated, EDamageType, DamageEnum, float, OldValue, float, NewValue);
+
+
 USTRUCT(BlueprintType)
-struct FStDamageIntMap
+struct FStVitalityStatMap
 {
 	GENERATED_BODY()
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) EDamageType DamageEnum;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int MapValue;
+	FStVitalityStatMap() {};
+	FStVitalityStatMap(EVitalityStat CoreStat, float NewValue);
+	{
+		StatEnum   = CoreStat;
+		MapValue   = NewValue;
+	};
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EVitalityStat StatEnum = EVitalityStat::STRENGTH;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MapValue = 0.f;
 };
 
-/**
- * 
-*/
 USTRUCT(BlueprintType)
-struct FStCharacterStats
+struct FStVitalityDamageMap
 {
 	GENERATED_BODY()
+	FStVitalityDamageMap() {};
+	FStVitalityDamageMap(EDamageType DamageEnum, float NewValue);
+	{
+		DamageType = DamageEnum;
+		MapValue   = NewValue;
+	};
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EDamageType DamageType = EDamageType::ADMIN;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MapValue = 0.f;
+};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Strength 	= 20;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Agility  	= 20;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Fortitude	= 20;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Astuteness	= 20;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Intellect	= 20;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) int Charisma	= 20;
+USTRUCT(BlueprintType)
+struct FStVitalityStats
+{
+	GENERATED_BODY()
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStDamageIntMap> DamageBonuses;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStDamageIntMap> DamageResists;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStVitalityStatMap> CoreStats;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStVitalityDamageMap> DamageBonuses;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStVitalityDamageMap> DamageResistances;
+
+	UPROPERTY(BlueprintAssignable) FOnCoreStatUpdated			OnCoreStatUpdated;
+	UPROPERTY(BlueprintAssignable) FOnDamageBonusUpdated		OnDamageBonusUpdated;
+	UPROPERTY(BlueprintAssignable) FOnDamageResistanceUpdated	OnDamageResistanceUpdated;
+	
 };
+
 
 /**
  * The base damage type for all Adventure Zero related damage

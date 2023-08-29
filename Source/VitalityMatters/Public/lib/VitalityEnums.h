@@ -13,22 +13,24 @@ enum class EVitalityStatus : uint8
 };
 
 UENUM(BlueprintType)
-enum class EVitalityCategories : uint8
+enum class EVitalityStat : uint8
 {
-	HEALTH		UMETA(DisplayName = "Health"),
-	STAMINA     UMETA(DisplayName = "Stamina"),
-	MAGIC		UMETA(DisplayName = "Magic"),
-	
-	HUNGER		UMETA(DisplayName = "Hunger"),
-	THIRST		UMETA(DisplayName = "Thirst"),
-
 	STRENGTH	UMETA(DisplayName = "Strength"),
 	AGILITY		UMETA(DisplayName = "Agility"),
 	FORTITUDE	UMETA(DisplayName = "Fortitude"),
 	INTELLECT	UMETA(DisplayName = "Intellect"),
 	ASTUTENESS	UMETA(DisplayName = "Astuteness"),
 	CHARISMA	UMETA(DisplayName = "Charisma"),
-	
+};
+
+UENUM(BlueprintType)
+enum class EVitalityCategory : uint8
+{
+	HEALTH		UMETA(DisplayName = "Health"),
+	STAMINA     UMETA(DisplayName = "Stamina"),
+	MAGIC		UMETA(DisplayName = "Magic"),
+	HUNGER		UMETA(DisplayName = "Hunger"),
+	THIRST		UMETA(DisplayName = "Thirst"),
 };
 
 UENUM(BlueprintType)

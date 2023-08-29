@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "VitalityData.h"
 #include "Engine/DataTable.h"
 
 #include "StatusEffects.generated.h"
@@ -53,7 +54,9 @@ struct FStVitalityEffects : public FTableRowBase
 	// The icon to show when this effect is applied
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) UTexture2D* effectIcon = nullptr;
 	// This effect is permanent until death, destruction or manual removal.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool isPersistent = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bIsPersistent = false;
+	// This effect stacks, multiplying the effect if it is applied multiple times.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEffectStacks = false;
 	// The maximum ticks the effect can last (where ticks = tickRate of the Vitality Tick Rate)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) int effectTicks = 0.f;
 	// If true, the optional actor spawned will attach to the Actor owning the vitality component
@@ -66,6 +69,7 @@ struct FStVitalityEffects : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool disableSprinting = false;
 	// Used internally. Setting this value does nothing.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) int uniqueId = 0;
+	
 };
 
 UCLASS()

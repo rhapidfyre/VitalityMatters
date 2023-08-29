@@ -9,12 +9,12 @@ UVitalityComponent::UVitalityComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	SetIsReplicatedByDefault(true);
-	SetAutoActivate(true);
 }
 
 void UVitalityComponent::OnComponentCreated()
 {
 	Super::OnComponentCreated();
+	SetAutoActivate(true);
 	RegisterComponent();
 }
 
@@ -32,7 +32,7 @@ float UVitalityComponent::DamageHealth(AActor* DamageActor, float DamageTaken)
 	
 	const float oldHealth = mHealthValue;
 	const float NewDamage = 0.f - abs(DamageTaken); // ensures a negative
-	const float newHealth = ModifyVitalityStat(EVitalityCategories::HEALTH, NewDamage);
+	const float newHealth = ModifyVitalityStat(EVitalityCategory::HEALTH, NewDamage);
 	if (newHealth < oldHealth)
 	{
 		if (newHealth <= 0.f && oldHealth > 0.f)
@@ -59,7 +59,7 @@ float UVitalityComponent::DamageHealth(AActor* DamageActor, float DamageTaken)
 float UVitalityComponent::ConsumeStamina(AActor* DamageActor, float DamageTaken)
 {
 	const float NewDamage = 0.f - abs(DamageTaken); // ensures a negative
-	const float newValue = ModifyVitalityStat(EVitalityCategories::STAMINA, NewDamage);
+	const float newValue = ModifyVitalityStat(EVitalityCategory::STAMINA, NewDamage);
 	return newValue;
 }
 
@@ -73,11 +73,11 @@ float UVitalityComponent::ConsumeStamina(AActor* DamageActor, float DamageTaken)
 float UVitalityComponent::ConsumeMagic(AActor* DamageActor, float DamageTaken)
 {
 	const float NewDamage = 0.f - abs(DamageTaken); // ensures a negative
-	const float newValue = ModifyVitalityStat(EVitalityCategories::MAGIC, NewDamage);
+	const float newValue = ModifyVitalityStat(EVitalityCategory::MAGIC, NewDamage);
 	return newValue;
 }
 
-void UVitalityComponent::SetTotalResistanceValue(EDamageType DamageEnum, int NewValue)
+void UVitalityComponent::SetNaturalResistanceValue(EDamageType DamageEnum, int NewValue)
 {
 	for (FStDamageIntMap IntMap : _BaseStats.DamageResists)
 	{
@@ -167,7 +167,7 @@ int UVitalityComponent::GetResistance(EDamageType DamageEnum) const
 	return TotalValue;
 }
 
-void UVitalityComponent::SetTotalDamageBonus(EDamageType DamageEnum, int NewValue)
+void UVitalityComponent::SetNaturalDamageBonus(EDamageType DamageEnum, int NewValue)
 {
 	for (FStDamageIntMap IntMap : _BaseStats.DamageBonuses)
 	{
@@ -232,12 +232,55 @@ void UVitalityComponent::RemoveGearDamageBonus(EDamageType DamageEnum, int Remov
 }
 
 // Call when the player's affects change to recalculate stats
-int UVitalityComponent::CalculateAffectDamageBonuses() const
+void UVitalityComponent::RecalculateAffectedStats()
 {
+	// For each active effect
+	TSet<FName> ProcessedEffectNames;
+	
+	FStCharacterStats AffectStatsModified = FStCharacterStats();
+	
 	for (const FStVitalityEffects& ActiveEffect : mCurrentEffects)
 	{
+		// Check if this effect stacks, if it's been processed already
+		if (ProcessedEffectNames.Contains(ActiveEffect.properName))
+		{
+			if (!ActiveEffect.bEffectStacks)
+			{
+				// If the effect doesn't stack, skip.
+				continue;
+			}
+		}
+		
+		// Effect stacks, or hasn't been processed yet
+		AffectStatsModified.Strength	+= ActiveEffect.StatsAffected.Strength;
+		AffectStatsModified.Agility		+= ActiveEffect.StatsAffected.Agility;
+		AffectStatsModified.Fortitude 	+= ActiveEffect.StatsAffected.Fortitude;
+		AffectStatsModified.Intellect 	+= ActiveEffect.StatsAffected.Intellect;
+		AffectStatsModified.Astuteness	+= ActiveEffect.StatsAffected.Astuteness;
+		AffectStatsModified.Charisma	+= ActiveEffect.StatsAffected.Charisma;
+
+		const TArray<FStDamageIntMap> DamageBonuses = ActiveEffect.StatsAffected.DamageBonuses;
+		if (!DamageBonuses.IsEmpty())
+		{
+			for (int i = 0; i < DamageBonuses.Num(); i++)
+			{
+				bool AffectExists = false;
+				for (int j = 0; j < AffectStatsModified.DamageBonuses.Num(); j++)
+				{
+					const FStDamageIntMap ThisIntMap = AffectStatsModified.DamageBonuses[j]; 
+					if (ThisIntMap.IsSameDamageType(DamageBonuses[i].DamageEnum))
+					{
+						AffectExists = true;
+						break;
+					}
+				}
+				
+			}
+			
+		}
 		
 	}
+	_AffectStats = AffectStatsModified;
 }
 
 /**
@@ -272,58 +315,58 @@ int UVitalityComponent::GetDamageBonus(EDamageType DamageEnum) const
  * @param StatMax The maximum value (by ref) of the stat
  * @return The value of health, as a percentage
  */
-float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat,
+float UVitalityComponent::GetVitalityStat(EVitalityCategory VitalityStat,
 		float &StatValue, float &StatMax) const
 {
 	
 	switch(VitalityStat)
 	{
-	case EVitalityCategories::HEALTH:
+	case EVitalityCategory::HEALTH:
 		StatValue = mHealthValue;
 		StatMax = mHealthMax;
 		return mHealthValue/mHealthMax;
-	case EVitalityCategories::STAMINA:
+	case EVitalityCategory::STAMINA:
 		StatValue = mStaminaValue;
 		StatMax = mStaminaMax;
 		return mStaminaValue/mStaminaMax;
-	case EVitalityCategories::HUNGER:
+	case EVitalityCategory::HUNGER:
 		StatValue = mCaloriesValue;
 		StatMax = mCaloriesMax;
 		return mCaloriesValue/mCaloriesMax;
-	case EVitalityCategories::THIRST:
+	case EVitalityCategory::THIRST:
 		StatValue = mHydrationValue;
 		StatMax = mHydrationMax;
 		return mHydrationValue/mHydrationMax;
-	case EVitalityCategories::MAGIC:
+	case EVitalityCategory::MAGIC:
 		StatValue = mMagicValue;
 		StatMax = mMagicMax;
 		return mMagicValue/mMagicMax;
-	case EVitalityCategories::STRENGTH:
+	case EVitalityCategory::STRENGTH:
 		StatValue = _BaseStats.Strength;
 		StatMax = _BaseStats.Strength;
 		return 1.0f;
 		
-	case EVitalityCategories::AGILITY:
+	case EVitalityCategory::AGILITY:
 		StatValue = _BaseStats.Agility;
 		StatMax = _BaseStats.Agility;
 		return 1.0f;
 		
-	case EVitalityCategories::FORTITUDE:
+	case EVitalityCategory::FORTITUDE:
 		StatValue = _BaseStats.Fortitude;
 		StatMax = _BaseStats.Fortitude;
 		return 1.0f;
 		
-	case EVitalityCategories::INTELLECT:
+	case EVitalityCategory::INTELLECT:
 		StatValue = _BaseStats.Intellect;
 		StatMax = _BaseStats.Intellect;
 		return 1.0f;
 		
-	case EVitalityCategories::ASTUTENESS:
+	case EVitalityCategory::ASTUTENESS:
 		StatValue = _BaseStats.Astuteness;
 		StatMax = _BaseStats.Astuteness;
 		return 1.0f;
 		
-	case EVitalityCategories::CHARISMA:
+	case EVitalityCategory::CHARISMA:
 		StatValue = _BaseStats.Charisma;
 		StatMax = _BaseStats.Charisma;
 		return 1.0f;
@@ -338,19 +381,19 @@ float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat,
  * @param VitalityStat The stat to be retrieved
  * @return The value of health, as a percentage
  */
-float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat)
+float UVitalityComponent::GetVitalityStat(EVitalityCategory VitalityStat)
 {
 	switch(VitalityStat)
 	{
-	case EVitalityCategories::HEALTH:
+	case EVitalityCategory::HEALTH:
 		return mHealthValue/mHealthMax;
-	case EVitalityCategories::STAMINA:
+	case EVitalityCategory::STAMINA:
 		return mStaminaValue/mStaminaMax;
-	case EVitalityCategories::HUNGER:
+	case EVitalityCategory::HUNGER:
 		return mCaloriesValue/mCaloriesMax;
-	case EVitalityCategories::THIRST:
+	case EVitalityCategory::THIRST:
 		return mHydrationValue/mHydrationMax;
-	case EVitalityCategories::MAGIC:
+	case EVitalityCategory::MAGIC:
 		return mMagicValue/mMagicMax;
 	default:
 		break;
@@ -363,11 +406,11 @@ float UVitalityComponent::GetVitalityStat(EVitalityCategories VitalityStat)
  * @param VitalityStat The enum to modify. Defaults to health.
  * @param NewValue The new value of the stat. Defaults to 100.f
  */
-float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, float NewValue)
+float UVitalityComponent::SetVitalityStat(EVitalityCategory VitalityStat, float NewValue)
 {
 	switch(VitalityStat)
 	{
-	case EVitalityCategories::HEALTH:
+	case EVitalityCategory::HEALTH:
 		
 		mHealthValue = NewValue;
 		
@@ -395,7 +438,7 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 		
 		return mHealthValue;
 		
-	case EVitalityCategories::STAMINA:
+	case EVitalityCategory::STAMINA:
 		mStaminaValue = NewValue;
 		if (mStaminaValue <= 0.f)
 		{
@@ -412,12 +455,12 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 		}
 		return mStaminaValue;
 		
-	case EVitalityCategories::MAGIC:
+	case EVitalityCategory::MAGIC:
 		mMagicValue = NewValue;
 		return mMagicValue;
 		
 		
-	case EVitalityCategories::HUNGER:
+	case EVitalityCategory::HUNGER:
 		mCaloriesValue = NewValue;
 		if (mCaloriesValue > (mCaloriesMax * 0.7))
 		{
@@ -440,7 +483,7 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 		}
 		return mCaloriesValue;
 		
-	case EVitalityCategories::THIRST:
+	case EVitalityCategory::THIRST:
 		mHydrationValue = NewValue;
 		if (mHydrationValue > (mHydrationMax * 0.7))
 		{
@@ -463,32 +506,32 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
 		}
 		return mHydrationValue;
 		
-	case EVitalityCategories::STRENGTH:
+	case EVitalityCategory::STRENGTH:
 		if (NewValue < 0.f)	_BaseStats.Strength = 0;
 		else				_BaseStats.Strength = FMath::RoundToInt(NewValue);
 		break;
 		
-	case EVitalityCategories::AGILITY:
+	case EVitalityCategory::AGILITY:
 		if (NewValue < 0.f)	_BaseStats.Agility = 0;
 		else				_BaseStats.Agility = FMath::RoundToInt(NewValue);
 		break;
 		
-	case EVitalityCategories::FORTITUDE:
+	case EVitalityCategory::FORTITUDE:
 		if (NewValue < 0.f)	_BaseStats.Fortitude = 0;
 		else				_BaseStats.Fortitude = FMath::RoundToInt(NewValue);
 		break;
 		
-	case EVitalityCategories::INTELLECT:
+	case EVitalityCategory::INTELLECT:
 		if (NewValue < 0.f)	_BaseStats.Intellect = 0;
 		else				_BaseStats.Intellect = FMath::RoundToInt(NewValue);
 		break;
 		
-	case EVitalityCategories::ASTUTENESS:
+	case EVitalityCategory::ASTUTENESS:
 		if (NewValue < 0.f)	_BaseStats.Astuteness = 0;
 		else				_BaseStats.Astuteness = FMath::RoundToInt(NewValue);
 		break;
 		
-	case EVitalityCategories::CHARISMA:
+	case EVitalityCategory::CHARISMA:
 		if (NewValue < 0.f)	_BaseStats.Charisma = 0;
 		else				_BaseStats.Charisma = FMath::RoundToInt(NewValue);
 		break;
@@ -506,7 +549,7 @@ float UVitalityComponent::SetVitalityStat(EVitalityCategories VitalityStat, floa
  * @param AddValue The value to add/remove. Sign sensitive. Defaults to 0.f
  * @return The new stat value (should be input value). Negative indicates error.
  */
-float UVitalityComponent::ModifyVitalityStat(EVitalityCategories VitalityStat, float AddValue)
+float UVitalityComponent::ModifyVitalityStat(EVitalityCategory VitalityStat, float AddValue)
 {
 	if (!FMath::IsNearlyZero(AddValue,0.001f))
 	{
@@ -1047,7 +1090,7 @@ void UVitalityComponent::TickHealth()
 		if (mHealthValue < mHealthMax)
 		{
 			// Current calories percent
-			const float caloriesPercent = GetVitalityStat(EVitalityCategories::HUNGER);
+			const float caloriesPercent = GetVitalityStat(EVitalityCategory::HUNGER);
 
 			if (caloriesPercent >= 0.5)
 			{
@@ -1110,7 +1153,7 @@ void UVitalityComponent::TickEffects()
 			if (mCurrentEffects.IsValidIndex(i))
 			{
 				const FStVitalityEffects vitalityData = mCurrentEffects[i];
-				if (!vitalityData.isPersistent)
+				if (!vitalityData.bIsPersistent)
 				{
 					mCurrentEffects[i].effectTicks--;
 					if (mCurrentEffects[i].effectTicks < 1)
