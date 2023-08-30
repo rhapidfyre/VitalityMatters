@@ -19,6 +19,23 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 
 
 USTRUCT(BlueprintType)
+struct FStDamageData
+{
+	GENERATED_BODY();
+	FStDamageData() {};
+	FStDamageData(AActor* DamageActor, float DamageValue)
+	{
+		DamagingActor    = DamageActor;
+		LastDamageValue  = DamageValue;
+		TotalDamageDealt = DamageValue;
+	}
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) AActor* DamagingActor  = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float LastDamageValue  = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float TotalDamageDealt = 0.f;
+	
+};
+
+USTRUCT(BlueprintType)
 struct FStVitalityStatMap
 {
 	GENERATED_BODY()

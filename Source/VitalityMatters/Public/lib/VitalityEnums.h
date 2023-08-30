@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 
+// A vitality status is a welfare status such as alive, dead, injured, etc
 UENUM(BlueprintType)
 enum class EVitalityStatus : uint8
 {
@@ -12,6 +13,7 @@ enum class EVitalityStatus : uint8
 	DOWN		UMETA(Display = "Unconscious"),
 };
 
+// A vitality stat is a core stat such as strength or agility
 UENUM(BlueprintType)
 enum class EVitalityStat : uint8
 {
@@ -23,6 +25,7 @@ enum class EVitalityStat : uint8
 	CHARISMA	UMETA(DisplayName = "Charisma"),
 };
 
+// A Vitality Category is a type of vitality value, such as health or hunger.
 UENUM(BlueprintType)
 enum class EVitalityCategory : uint8
 {
@@ -33,6 +36,7 @@ enum class EVitalityCategory : uint8
 	THIRST		UMETA(DisplayName = "Thirst"),
 };
 
+// Combat State is used to track the actors sympathetic nervous system status
 UENUM(BlueprintType)
 enum class ECombatState : uint8
 {
@@ -44,6 +48,7 @@ enum class ECombatState : uint8
 	INJURED  UMETA(DisplayName = "Incapacitated")
 };
 
+// All of the damage types available for this game
 UENUM(BlueprintType)
 enum class EDamageType : uint8
 {
@@ -97,6 +102,7 @@ enum class EDamageType : uint8
 };
 
 // A list of all values that wielding equipment can modify
+// Is this obsolete?
 UENUM(BlueprintType)
 enum class EEquipmentValues : uint8
 {
