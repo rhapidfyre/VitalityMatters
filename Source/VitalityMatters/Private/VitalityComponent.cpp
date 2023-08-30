@@ -1352,6 +1352,7 @@ void UVitalityComponent::InitializeTimer(FTimerHandle& timerHandle, FTimerDelega
 void UVitalityComponent::CancelTimer(FTimerHandle& timerHandle)
 {
 	if (GetWorld()->GetTimerManager().TimerExists(timerHandle))
+	if (GetWorld()->GetTimerManager().TimerExists(timerHandle))
 	{
 		if (timerHandle.IsValid())
 		{

@@ -2,6 +2,8 @@
 
 #include "VitalityWelfareComponent.h"
 
+#include "Net/UnrealNetwork.h"
+
 
 /**
  * @brief Call whenever save games are loaded
@@ -148,16 +150,20 @@ float UVitalityWelfareComponent::DamageHealth(AActor* DamageInstigator, float Da
 					IsNewDamage = false;
 				}
 			}
+			
 			if (IsNewDamage)
 				_DamageHistory.Add(FStDamageData(DamageInstigator, NewDamageValue));
 
 			_HealthCurrent -= NewDamageValue;
+			OnDamageTaken.Broadcast(DamageInstigator, NewDamageValue);
+			Multicast_DamageTaken_Implementation(DamageInstigator, NewDamageValue);
+			
 			if (_HealthCurrent <= 0.f && !GetIsDead())
 			{
 				_IsDead = true;
 				OnDeath.Broadcast(DamageInstigator);
 			}
-			OnDamageTaken.Broadcast(GetOwner(), DamageInstigator, NewDamageValue);
+			
 		}
 	}
 	return _HealthCurrent;
@@ -171,14 +177,13 @@ float UVitalityWelfareComponent::DamageHealth(AActor* DamageInstigator, float Da
  */
 float UVitalityWelfareComponent::DamageStamina(AActor* DamageInstigator, float DamageTaken)
 {
-	const float OldValue = _StaminaCurrent;
 	const float NewDamageValue = abs(DamageTaken);
 	if (_StaminaMax > 0.f)
 	{
 		_StaminaCurrent -= NewDamageValue;
 		if (_HealthCurrent <= 0.f && !GetIsDead())
 			_IsDead = true;
-		OnStaminaUpdated.Broadcast(OldValue, _StaminaCurrent);
+		OnStaminaUpdated.Broadcast(_StaminaCurrent, _StaminaMax, GetStaminaPercent());
 	}
 	return 0.f;
 }
@@ -191,16 +196,89 @@ float UVitalityWelfareComponent::DamageStamina(AActor* DamageInstigator, float D
  */
 float UVitalityWelfareComponent::DamageMagic(AActor* DamageInstigator, float DamageTaken)
 {
-	const float OldValue = _MagicCurrent;
 	const float NewDamageValue = abs(DamageTaken);
 	if (_MagicMax > 0.f)
 	{
 		_MagicCurrent -= NewDamageValue;
 		if (_MagicCurrent <= 0.f && !GetIsDead())
 			_IsDead = true;
-		OnMagicUpdated.Broadcast(OldValue, _StaminaCurrent);
+		OnMagicUpdated.Broadcast(_MagicCurrent, _MagicMax, GetMagicPercent());
 	}
 	return 0.f;
+}
+
+bool UVitalityWelfareComponent::StartTimerForCategory(EVitalityCategory VitalityCategory)
+{
+	FTimerHandle* TimerReference = &_HealthTimer;
+	FTimerDelegate TimerDelegate;
+	float TimerTickRate = 1.f;
+	
+	switch(VitalityCategory)
+	{
+	case EVitalityCategory::STAMINA:
+		TimerReference = &_StaminaTimer;
+		TimerDelegate.BindUObject(this, UVitalityWelfareComponent::TickStamina);
+		TimerTickRate = _StaminaTimerTickRate;
+		break;
+	case EVitalityCategory::MAGIC:
+		TimerReference = &_MagicTimer;
+		TimerDelegate.BindUObject(this, UVitalityWelfareComponent::TickMagic);
+		TimerTickRate = _MagicTimerTickRate;
+		break;
+	case EVitalityCategory::THIRST:
+		TimerReference = &_HydrationTimer;
+		TimerDelegate.BindUObject(this, UVitalityWelfareComponent::TickHydration);
+		TimerTickRate = _HydrationTimerTickRate;
+		break;
+	case EVitalityCategory::HUNGER:
+		TimerReference = &_CaloriesTimer;
+		TimerDelegate.BindUObject(this, UVitalityWelfareComponent::TickCalories);
+		TimerTickRate = _HungerTimerTickRate;
+		break;
+	default:
+		TimerDelegate.BindUObject(this, UVitalityWelfareComponent::TickHealth);
+		break;
+	}
+	
+	if (TimerReference != nullptr)
+		InitializeTimer(*TimerReference, TimerDelegate, TimerTickRate);
+	
+	return true;
+}
+
+bool UVitalityWelfareComponent::CancelTimerForCategory(EVitalityCategory VitalityCategory)
+{
+	FTimerHandle* TimerReference = &_HealthTimer;
+	switch(VitalityCategory)
+	{
+	case EVitalityCategory::STAMINA:	TimerReference = &_StaminaTimer;	break;
+	case EVitalityCategory::MAGIC:		TimerReference = &_MagicTimer;		break;
+	case EVitalityCategory::THIRST:		TimerReference = &_HydrationTimer;	break;
+	case EVitalityCategory::HUNGER:		TimerReference = &_CaloriesTimer;	break;
+	default:
+		break;
+	}
+	CancelTimer(*TimerReference);
+	return true;
+}
+
+bool UVitalityWelfareComponent::PauseTimerForCategory(EVitalityCategory VitalityCategory, bool PauseTimer)
+{
+	const FTimerHandle* TimerReference = &_HealthTimer;
+	switch(VitalityCategory)
+	{
+	case EVitalityCategory::STAMINA:	TimerReference = &_StaminaTimer;	break;
+	case EVitalityCategory::MAGIC:		TimerReference = &_MagicTimer;		break;
+	case EVitalityCategory::THIRST:		TimerReference = &_HydrationTimer;	break;
+	case EVitalityCategory::HUNGER:		TimerReference = &_CaloriesTimer;	break;
+	default:
+		break;
+	}
+	if (PauseTimer)
+		GetWorld()->GetTimerManager().PauseTimer(*TimerReference);
+	else
+		GetWorld()->GetTimerManager().UnPauseTimer(*TimerReference);
+	return true;
 }
 
 /**
@@ -389,8 +467,38 @@ void UVitalityWelfareComponent::BeginPlay()
 	ReloadSettings();
 }
 
+void UVitalityWelfareComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	
+	DOREPLIFETIME(UVitalityWelfareComponent, _DamageHistory);
+	DOREPLIFETIME(UVitalityWelfareComponent, _IsDead);
+	DOREPLIFETIME(UVitalityWelfareComponent, _CombatState);
+	
+	DOREPLIFETIME(UVitalityWelfareComponent, _HealthCurrent);
+	DOREPLIFETIME(UVitalityWelfareComponent, _HealthMax);
+	
+	DOREPLIFETIME(UVitalityWelfareComponent, _MagicCurrent);
+	DOREPLIFETIME(UVitalityWelfareComponent, _MagicMax);
+	
+	DOREPLIFETIME(UVitalityWelfareComponent, _StaminaCurrent);
+	DOREPLIFETIME(UVitalityWelfareComponent, _StaminaMax);
+	
+	DOREPLIFETIME(UVitalityWelfareComponent, _CaloriesCurrent);
+	DOREPLIFETIME(UVitalityWelfareComponent, _CaloriesMax);
+	
+	DOREPLIFETIME(UVitalityWelfareComponent, _HydrationCurrent);
+	DOREPLIFETIME(UVitalityWelfareComponent, _HydrationMax);
+}
+
+/**
+ * @brief Helper Function used to set the various timers in this class
+ * @param TimerHandle The timer handle to be modified
+ * @param TimerDelegate The delegate for timer functionality
+ * @param TickRate The tick rate for the timer
+ */
 void UVitalityWelfareComponent::InitializeTimer(FTimerHandle& TimerHandle,
-		FTimerDelegate TimerDelegate, float TickRate)
+		FTimerDelegate TimerDelegate, float TickRate) const
 {
 	if (GetWorld()->GetTimerManager().TimerExists(TimerHandle))
 		TimerHandle.Invalidate();
@@ -398,4 +506,228 @@ void UVitalityWelfareComponent::InitializeTimer(FTimerHandle& TimerHandle,
 	const float managerTickRate = TickRate <= 0.f ? 1.f : TickRate;
 	GetWorld()->GetTimerManager().SetTimer(TimerHandle,	TimerDelegate,
 		1 * managerTickRate, true);
+}
+
+void UVitalityWelfareComponent::CancelTimer(FTimerHandle& TimerHandle) const
+{
+	if (GetWorld()->GetTimerManager().TimerExists(TimerHandle))
+	{
+		if (TimerHandle.IsValid())
+			TimerHandle.Invalidate();
+	}
+}
+
+void UVitalityWelfareComponent::TickStamina()
+{
+	// If stamina is fully regenerated, kill the timer. It's not needed anymore.
+	if (_StaminaCurrent >= _StaminaMax)
+	{
+		CancelTimer(_StaminaTimer);
+		_StaminaCurrent = _StaminaMax;
+	}
+	else
+		_StaminaCurrent += _StaminaRegenAtRest;
+}
+
+void UVitalityWelfareComponent::TickHealth()
+{
+	if (_HealthCurrent > 0.f)
+	{
+		if (_HealthCurrent < _HealthMax)
+		{
+			// Current calories percent
+			const float HungerPercent = GetHungerPercent();
+
+			// If hunger is above 40%, allow full regeneration
+			if (HungerPercent >= 0.4)
+			{
+				_HealthCurrent += _HealthRegenAtRest;	
+			}
+			// If it's below 40%, cap regen to hunger value
+			else
+			{
+				// Health can regen up to twice the percentage of calories
+				if ( ((_HealthCurrent/_HealthMax)*0.4) < HungerPercent )
+				{
+					_HealthCurrent += _HealthRegenAtRest;
+				}
+			}
+		}
+		else if (_HealthCurrent > _HealthMax)
+		{
+			CancelTimer(_HealthTimer);
+			_HealthCurrent = _HealthMax;
+		}
+	}
+}
+
+void UVitalityWelfareComponent::TickMagic()
+{
+}
+
+void UVitalityWelfareComponent::TickCalories()
+{
+	if (_CaloriesCurrent > 0.f)
+	{
+		_CaloriesCurrent -= _CaloriesDrainAtRest;
+		if (_CaloriesCurrent <= 0.f)
+		{
+			CancelTimer(_CaloriesTimer);
+			_CaloriesCurrent = 0.f;
+		}
+	}
+}
+
+void UVitalityWelfareComponent::TickHydration()
+{
+	if (_HydrationCurrent > 0.f)
+	{
+		_HydrationCurrent -= _HydrationDrainAtRest;
+		if (_HydrationCurrent <= 0.f)
+		{
+			_HydrationCurrent = 0.f;
+			CancelTimer(_HydrationTimer);
+		}
+	}
+}
+
+void UVitalityWelfareComponent::SetCombatState(ECombatState CombatState)
+{
+	float CombatTimer = 0.f;
+		
+	// Everytime hostile action is taken, reset the timer
+	if (CombatState == ECombatState::ENGAGED || CombatState == ECombatState::ALERT)
+	{
+		if (_CombatTimer.IsValid())
+			_CombatTimer.Invalidate();
+		CombatTimer = 10.f;
+	}
+		
+	if (GetCombatState() != CombatState)
+	{
+		DecreaseCombatState();
+		const ECombatState NewCombatState = GetCombatState();
+		if (NewCombatState != ECombatState::ENGAGED)
+		{
+			// Player has either acquired or sustained alertness
+			if (NewCombatState == ECombatState::ALERT)
+			{
+				CombatTimer = 3.f;
+			}
+			// Player is now engaged in combat
+			else if (NewCombatState == ECombatState::ENGAGED)
+			{
+				CombatTimer = 10.f;
+			}
+		}
+		else
+		{
+			// Player has left combat and is coming down from engagement
+			if (NewCombatState == ECombatState::ALERT)
+			{
+				CombatTimer = 10.f;
+			}
+		}
+			
+	}
+
+	if (CombatTimer > 0.f)
+	{
+		if (_CombatTimer.IsValid())
+			_CombatTimer.Invalidate();
+			
+		GetWorld()->GetTimerManager().SetTimer(_CombatTimer, this,
+			&UVitalityWelfareComponent::DecreaseCombatState, CombatTimer, false);
+	}
+	
+}
+
+void UVitalityWelfareComponent::OnRep_CombatStateChanged_Implementation(ECombatState OldCombatState)
+{
+	OnCombatStateChanged.Broadcast(OldCombatState, _CombatState);
+}
+
+void UVitalityWelfareComponent::OnRep_HealthValueChanged_Implementation(float OldValue)
+{
+	float CurrentValue = 0, MaximumValue = 0;
+	const float ValueAsPercent = GetCurrentHealth(CurrentValue, MaximumValue);
+	OnHealthUpdated.Broadcast(_HealthCurrent, _HealthMax, ValueAsPercent);
+}
+void UVitalityWelfareComponent::OnRep_HealthMaxChanged_Implementation(float OldValue)
+{
+	float CurrentValue = 0, MaximumValue = 0;
+	const float ValueAsPercent = GetCurrentHealth(CurrentValue, MaximumValue);
+	OnHealthUpdated.Broadcast(_HealthCurrent, _HealthMax, ValueAsPercent);
+}
+
+void UVitalityWelfareComponent::OnRep_MagicValueChanged_Implementation(float OldValue)
+{
+	float CurrentValue = 0, MaximumValue = 0;
+	const float ValueAsPercent = GetCurrentMagic(CurrentValue, MaximumValue);
+	OnMagicUpdated.Broadcast(_MagicCurrent, _MagicMax, ValueAsPercent);
+}
+void UVitalityWelfareComponent::OnRep_MagicMaxChanged_Implementation(float OldValue)
+{
+	float CurrentValue = 0, MaximumValue = 0;
+	const float ValueAsPercent = GetCurrentMagic(CurrentValue, MaximumValue);
+	OnMagicUpdated.Broadcast(_MagicCurrent, _MagicMax, ValueAsPercent);
+}
+
+void UVitalityWelfareComponent::OnRep_StaminaValueChanged_Implementation(float OldValue)
+{
+	float CurrentValue = 0, MaximumValue = 0;
+	const float ValueAsPercent = GetCurrentStamina(CurrentValue, MaximumValue);
+	OnStaminaUpdated.Broadcast(_StaminaCurrent, _StaminaMax, ValueAsPercent);
+}
+void UVitalityWelfareComponent::OnRep_StaminaMaxChanged_Implementation(float OldValue)
+{
+	float CurrentValue = 0, MaximumValue = 0;
+	const float ValueAsPercent = GetCurrentStamina(CurrentValue, MaximumValue);
+	OnStaminaUpdated.Broadcast(_StaminaCurrent, _StaminaMax, ValueAsPercent);
+}
+
+void UVitalityWelfareComponent::OnRep_CaloriesValueChanged_Implementation(float OldValue)
+{
+	float CurrentValue = 0, MaximumValue = 0;
+	const float ValueAsPercent = GetCurrentHunger(CurrentValue, MaximumValue);
+	OnCaloriesUpdated.Broadcast(_CaloriesCurrent, _CaloriesMax, ValueAsPercent);
+}
+void UVitalityWelfareComponent::OnRep_CaloriesMaxChanged_Implementation(float OldValue)
+{
+	float CurrentValue = 0, MaximumValue = 0;
+	const float ValueAsPercent = GetCurrentHunger(CurrentValue, MaximumValue);
+	OnCaloriesUpdated.Broadcast(_CaloriesCurrent, _CaloriesMax, ValueAsPercent);
+}
+
+void UVitalityWelfareComponent::OnRep_HydrationValueChanged_Implementation(float OldValue)
+{
+	float CurrentValue = 0, MaximumValue = 0;
+	const float ValueAsPercent = GetCurrentHydration(CurrentValue, MaximumValue);
+	OnHydrationUpdated.Broadcast(_HydrationCurrent, _HydrationMax, ValueAsPercent);
+}
+void UVitalityWelfareComponent::OnRep_HydrationMaxChanged_Implementation(float OldValue)
+{
+	float CurrentValue = 0, MaximumValue = 0;
+	const float ValueAsPercent = GetCurrentHydration(CurrentValue, MaximumValue);
+	OnHydrationUpdated.Broadcast(_HydrationCurrent, _HydrationMax, ValueAsPercent);
+}
+
+/**
+ * @brief Sent to all clients when damage was taken by this actor.
+ * @param DamageInstigator The actor dealing the damage. Nullptr means environmental.
+ * @param DamageTaken The actual value of damage taken
+ */
+void UVitalityWelfareComponent::Multicast_DamageTaken_Implementation(
+		AActor* DamageInstigator, float DamageTaken)
+{
+	OnDamageTaken.Broadcast(DamageInstigator, DamageTaken);
+}
+
+/**
+* @brief  Sent to the owning client so they can run death-related delegates.
+ * @param DamageInstigator The actor who dealt the damage. Nullptr means environmental.
+ */
+void UVitalityWelfareComponent::Multicast_VitalityDeath_Implementation(AActor* DamageInstigator)
+{
+	OnDeath.Broadcast(DamageInstigator);
 }

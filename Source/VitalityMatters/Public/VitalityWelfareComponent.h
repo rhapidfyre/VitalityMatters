@@ -11,13 +11,15 @@
 
 #include "VitalityWelfareComponent.generated.h"
 
+class UVitalityEffectsComponent;
+class UVitalityStatComponent;
 // Called when the combat state has changed
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnCombatStateChanged,	ECombatState, OldCombatState, ECombatState, NewState);
 
 // Called whenever the actor takes damage, whether it kills them or not.
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FOnDamageTaken,			AActor*, DamageTaker, AActor*, DamageInstigator, float, DamageTaken);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+	FOnDamageTaken,			AActor*, DamageInstigator, float, DamageTaken);
 
 // Called whenever the actor is healed, whether dead or not
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
@@ -28,20 +30,20 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnDeath,				AActor*, KillingActor);
 
 // Called whenever the current health value has changed, no matter the cause
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-	FOnHealthUpdated,		float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnHealthUpdated,		float, CurrentValue, float, MaxValue, float, ValueAsPercent);
 // Called whenever the current stamina value has changed, no matter the cause
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-	FOnStaminaUpdated,		float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnStaminaUpdated,		float, CurrentValue, float, MaxValue, float, ValueAsPercent);
 // Called whenever the current magic value has changed, no matter the cause
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-	FOnMagicUpdated,		float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnMagicUpdated,		float, CurrentValue, float, MaxValue, float, ValueAsPercent);
 // Called whenever the current hydration value has changed, no matter the cause
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-	FOnHydrationUpdated,	float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnHydrationUpdated,	float, CurrentValue, float, MaxValue, float, ValueAsPercent);
 // Called whenever the current calorie value has changed, no matter the cause
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-	FOnCaloriesUpdated,		float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnCaloriesUpdated,		float, CurrentValue, float, NewValue, float, ValueAsPercent);
 
 
 /**
@@ -63,10 +65,12 @@ public:
 	UFUNCTION(BlueprintCallable) float DamageHealth(AActor* DamageInstigator = nullptr, float DamageTaken = 0.f);
 	UFUNCTION(BlueprintCallable) float DamageStamina(AActor* DamageInstigator = nullptr, float DamageTaken = 0.f);
 	UFUNCTION(BlueprintCallable) float DamageMagic(AActor* DamageInstigator = nullptr, float DamageTaken = 0.f);
-	
-	
-	/* Getter Functions / Accessors */
 
+	UFUNCTION(BlueprintCallable) bool StartTimerForCategory(EVitalityCategory VitalityCategory);
+	UFUNCTION(BlueprintCallable) bool CancelTimerForCategory(EVitalityCategory VitalityCategory);
+	UFUNCTION(BlueprintCallable) bool PauseTimerForCategory(EVitalityCategory VitalityCategory, bool PauseTimer = true);
+
+	/* Getter Functions / Accessors */
 
 	UFUNCTION(BlueprintPure) bool GetIsDead() const { return _IsDead; }
 	UFUNCTION(BlueprintPure) ECombatState GetCombatState() const { return _CombatState; };
@@ -106,11 +110,9 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	void InitializeTimer(FTimerHandle& TimerHandle,
-			FTimerDelegate TimerDelegate, float TickRate = 0.5);
+			FTimerDelegate TimerDelegate, float TickRate = 0.5) const;
 
-	void CancelTimer(FTimerHandle& TimerHandle);
-
-	void ResetTickTimer(FTimerHandle& TimerHandle);
+	void CancelTimer(FTimerHandle& TimerHandle) const;
 	
 	// Handles stamina decrease, stamina regen and sprinting logic
 	virtual void TickStamina();
@@ -133,38 +135,27 @@ private:
 	
 	/* Replication Callbacks */
 	
-	UFUNCTION(NetMulticast, Reliable)
-	void OnRep_CombatStateChanged(ECombatState OldCombatState);
-	
-	UFUNCTION(NetMulticast, Reliable)
-	void OnRep_HealthValueChanged(float OldHealthValue);
-	
-	UFUNCTION(NetMulticast, Reliable)
-	void OnRep_MagicValueChanged(float OldMagicValue);
-	
-	UFUNCTION(NetMulticast, Reliable)
-	void OnRep_StaminaValueChanged(float OldStaminaValue);
-
-	UFUNCTION(Client, Reliable)
-	void OnRep_CaloriesValueChanged(float OldCaloriesValue);
-	
-	UFUNCTION(Client, Reliable)
-	void OnRep_HydrationValueChanged(float OldHydrationValue);
+	UFUNCTION(NetMulticast, Reliable)	void OnRep_CombatStateChanged(ECombatState OldCombatState);
+	UFUNCTION(NetMulticast, Reliable)	void OnRep_HealthValueChanged(float OldValue);
+	UFUNCTION(NetMulticast, Reliable)	void OnRep_HealthMaxChanged(float OldValue);
+	UFUNCTION(NetMulticast, Reliable)	void OnRep_MagicValueChanged(float OldValue);
+	UFUNCTION(NetMulticast, Reliable)	void OnRep_MagicMaxChanged(float OldValue);
+	UFUNCTION(NetMulticast, Reliable)	void OnRep_StaminaValueChanged(float OldValue);
+	UFUNCTION(NetMulticast, Reliable)	void OnRep_StaminaMaxChanged(float OldValue);
+	UFUNCTION(Client, Reliable)			void OnRep_CaloriesValueChanged(float OldValue);
+	UFUNCTION(Client, Reliable)			void OnRep_CaloriesMaxChanged(float OldValue);
+	UFUNCTION(Client, Reliable)			void OnRep_HydrationValueChanged(float OldValue);
+	UFUNCTION(Client, Reliable)			void OnRep_HydrationMaxChanged(float OldValue);
 	
 	/** Sent to all clients from server when the DamageHealth() function runs
 	 * successfully, but the character survives the damage. Used to trigger clientside events.
 	 * May arrive prior to the mHealthValue actually being changed.
 	 */
 	UFUNCTION(NetMulticast, Unreliable)
-	void Multicast_DamageTaken(AActor* DamageTaker,
-		AActor* DamageInstigator, float DamageTaken = 0.f);
+	void Multicast_DamageTaken(AActor* DamageInstigator, float DamageTaken = 0.f);
 	
-	/** Sent to all clients from server when the DamageHealth() function runs
-	 * successfully, and the character dies as a result. Used to trigger clientside events.
-	 * May arrive prior to the mHealthValue actually being changed.
-	 */
 	UFUNCTION(Client, Unreliable)
-	void Multicast_VitalityDeath(AActor* DamageActor = nullptr);
+	void Multicast_VitalityDeath(AActor* DamageInstigator = nullptr);
 	
 	
 public:
@@ -181,23 +172,23 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events")
 	FOnDeath				OnDeath;
 
-	// Called whenever the actors health or max health changes, for any reason.
+	// Called whenever the actors health changes, for any reason.
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events")
 	FOnHealthUpdated		OnHealthUpdated;
 	
-	// Called whenever the actors stamina or max stamina changes, for any reason.
+	// Called whenever the actors stamina changes, for any reason.
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events")
 	FOnStaminaUpdated		OnStaminaUpdated;
 	
-	// Called whenever the actors magic or max magic changes, for any reason.
+	// Called whenever the actors magic changes, for any reason.
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events")
 	FOnMagicUpdated			OnMagicUpdated;
 	
-	// Called whenever the actors hydration or max hydration changes, for any reason.
+	// Called whenever the actors hydration changes, for any reason.
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events")
 	FOnHydrationUpdated		OnHydrationUpdated;
 	
-	// Called whenever the actors calories or max calories changes, for any reason.
+	// Called whenever the actors calories changes, for any reason.
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events")
 	FOnCaloriesUpdated		OnCaloriesUpdated;
 
@@ -291,36 +282,37 @@ private:
 	UPROPERTY() FTimerHandle _CaloriesTimer;
 	UPROPERTY() FTimerHandle _HydrationTimer;
 	UPROPERTY() FTimerHandle _CombatTimer;
-	
-	// Timers handling cool downs before regen/reset can occur
-	UPROPERTY() FTimerHandle _StaminaCooldownTimer;
 		
 	/* Replicated Members */
+
+	UPROPERTY(Replicated) TArray<FStDamageData> _DamageHistory;
+	
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_IsDeadChanged)
+	bool  _IsDead        = false;
 	
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CombatStateChanged)
 	ECombatState _CombatState = ECombatState::RELAXED;
+	
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_HealthValueChanged)
 	float _HealthCurrent	= 1.f;
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_HealthMaxChanged)
+	float _HealthMax		= 1.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_MagicValueChanged)
 	float _MagicCurrent		= 1.f;
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_MagicMaxChanged)
+	float _MagicMax			= 1.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_StaminaValueChanged)
 	float _StaminaCurrent	= 1.f;
-	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CaloriesValueChanged)
-	float _CaloriesCurrent  = 1.f;
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_StaminaMaxChanged)
+	float _StaminaMax		= 1.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_HydrationValueChanged)
 	float _HydrationCurrent = 1.f;
-	
-	UPROPERTY(Replicated)
-	TArray<FStDamageData> _DamageHistory;
-	
-	/* Replicated Maximums */
-
-	UPROPERTY(Replicated) bool  _IsDead         = false;
-	UPROPERTY(Replicated) float _HealthMax		= 1.f;
-	UPROPERTY(Replicated) float _MagicMax		= 1.f;  
-	UPROPERTY(Replicated) float _StaminaMax		= 1.f;  
-	UPROPERTY(Replicated) float _CaloriesMax	= 500.f;
-	UPROPERTY(Replicated) float _HydrationMax	= 500.f;
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_HydrationMaxChanged)
+	float _HydrationMax		= 500.f;
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CaloriesValueChanged)
+	float _CaloriesCurrent  = 1.f;	
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CaloriesMaxChanged)
+	float _CaloriesMax		= 500.f;
 
 	/* Non-Replicated Members */
 	
