@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Delegates/Delegate.h"
-#include "lib/VitalityData.h"
+#include "lib/StatusEffects.h"
 
 #include "VitalityEffectsComponent.generated.h"
 
@@ -32,27 +32,25 @@ public:
 	UVitalityEffectsComponent();
 	
 	UFUNCTION(BlueprintCallable) bool ApplyEffect(FName EffectName, int StackCount = 1);
+	UFUNCTION(BlueprintCallable) bool ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
+	UFUNCTION(BlueprintCallable) bool ApplyEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount = 1);
 	
-	UFUNCTION(BlueprintPure) FStVitalityEffects GetEffectByUniqueId(int UniqueId) const;
+	UFUNCTION(BlueprintPure) FStVitalityEffects GetEffectByUniqueId(int UniqueId);
 	
-	UFUNCTION(Blueprintcallable) bool RemoveEffect(FName EffectName, int RemoveCount);
+	UFUNCTION(Blueprintcallable) bool RemoveEffect(FName EffectName, int RemoveCount = 1);
 	UFUNCTION(BlueprintCallable) bool RemoveEffectByUniqueId(int UniqueId = 0);
 	UFUNCTION(BlueprintCallable) bool RemoveEffectAtIndex(int IndexNumber = 0);
-
-	UFUNCTION(BlueprintCallable) bool ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
-	UFUNCTION(BlueprintCallable) bool RevokeEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
-
-	UFUNCTION(BlueprintCallable) bool ApplyEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount = 1);
-	UFUNCTION(BlueprintCallable) bool RevokeEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount = 1);
+	UFUNCTION(BlueprintCallable) bool RemoveEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
+	UFUNCTION(BlueprintCallable) bool RemoveEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount = 1);
 
 	UFUNCTION(BlueprintCallable) int GetNumberOfActiveBenefits(EEffectsBeneficial BenefitEffect);
 	UFUNCTION(BlueprintCallable) int GetNumberOfActiveDetriments(EEffectsDetrimental DetrimentEffect);
 	UFUNCTION(BlueprintPure) int GetNumberOfActiveEffects() const { return _CurrentEffects.Num(); }
 
 	UFUNCTION(BlueprintPure) TArray<FStVitalityEffects> GetAllActiveEffects() const { return _CurrentEffects; }
-	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect) const;
 	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByBenefit(EEffectsBeneficial BenefitEffect) const;
-
+	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect) const;
+	
 	UFUNCTION(BlueprintPure) bool IsEffectActive(FName EffectName) const;
 	UFUNCTION(BlueprintPure) bool IsEffectIdActive(int UniqueId) const;
 	UFUNCTION(BlueprintPure) bool IsEffectBeneficialActive(EEffectsBeneficial EffectEnum) const;
@@ -69,10 +67,15 @@ protected:
 
 private:
 	
+	void InitializeTimer(FTimerHandle& TimerHandle,
+			FTimerDelegate TimerDelegate, float TickRate = 0.5) const;
+
+	void CancelTimer(FTimerHandle& TimerHandle) const;
+	
 	int GenerateUniqueId();
 
 	UFUNCTION(Client, Reliable)
-	void OnRep_CurrentEffects();
+	void OnRep_CurrentEffectsChanged(TArray<FStVitalityEffects> OldEffects);
 	
 public:
 	
@@ -89,8 +92,12 @@ public:
 	FOnEffectBeneficialExpired OnEffectBeneficialExpired;
 	
 private:
-	
-	FRWLock mMutexLock;
+
+	// Write Lock: Stops all writing AND reading
+	// Read Lock:  Stops all writing, allows any number of reads
+	FRWLock _EffectsLock;
+	//FRWLock _AddQueueLock;
+	//FRWLock _RemoveQueueLock;
 	
 	UPROPERTY() FTimerHandle _EffectsTimer;
 
@@ -98,8 +105,8 @@ private:
 	TArray<FStVitalityEffects> _CurrentEffects;
 
 	
-	TArray<FStVitalityEffects> mEffectsAddQueue;	// Thread safe add queue
-	TArray<int> mEffectsRemoveQueue;				// Thread safe remove queue
+	TArray<FStVitalityEffects> _AddQueue;	// Thread safe add queue
+	TArray<int> _RemoveQueue;				// Thread safe remove queue
 	
 	
 };

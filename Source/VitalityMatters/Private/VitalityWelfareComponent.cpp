@@ -508,6 +508,10 @@ void UVitalityWelfareComponent::InitializeTimer(FTimerHandle& TimerHandle,
 		1 * managerTickRate, true);
 }
 
+/**
+ * @brief Cancels and invalidates the requested timer, if it is valid
+ * @param TimerHandle The timer handle to be canceled and invalidated
+ */
 void UVitalityWelfareComponent::CancelTimer(FTimerHandle& TimerHandle) const
 {
 	if (GetWorld()->GetTimerManager().TimerExists(TimerHandle))
