@@ -102,6 +102,7 @@ public:
 	UFUNCTION(BlueprintCallable) void DecreaseCombatState();
 	UFUNCTION(BlueprintCallable) void ResetCombatState();
 	UFUNCTION(BlueprintCallable) void SetCombatEngaged();
+	UFUNCTION(BlueprintCallable) void SetCombatAlert();
 
 protected:
 	
@@ -129,12 +130,11 @@ protected:
 	// Handles passive consumption of Hydration & thirst effect
 	virtual void TickHydration();
 	
-	UFUNCTION(BlueprintCallable) void SetCombatState(ECombatState CombatState);
-	
 private:
 	
 	/* Replication Callbacks */
 	
+	UFUNCTION(NetMulticast, Reliable)	void OnRep_IsDeadChanged(bool WasDeadBefore);
 	UFUNCTION(NetMulticast, Reliable)	void OnRep_CombatStateChanged(ECombatState OldCombatState);
 	UFUNCTION(NetMulticast, Reliable)	void OnRep_HealthValueChanged(float OldValue);
 	UFUNCTION(NetMulticast, Reliable)	void OnRep_HealthMaxChanged(float OldValue);
@@ -157,6 +157,8 @@ private:
 	UFUNCTION(Client, Unreliable)
 	void Multicast_VitalityDeath(AActor* DamageInstigator = nullptr);
 	
+	UFUNCTION(BlueprintCallable)
+	void SetCombatState(ECombatState CombatState);
 	
 public:
 

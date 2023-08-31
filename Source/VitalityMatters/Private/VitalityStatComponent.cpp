@@ -19,7 +19,7 @@ UVitalityStatComponent::UVitalityStatComponent()
  */
 bool UVitalityStatComponent::SetNaturalResistanceValue(EDamageType DamageEnum, int NewValue)
 {
-	return SetNewDamageResistanceValue(&_BaseStats, DamageEnum, NewValue);
+	return SetNewDamageResistanceValue(_BaseStats, DamageEnum, NewValue);
 }
 
 /**
@@ -30,7 +30,7 @@ bool UVitalityStatComponent::SetNaturalResistanceValue(EDamageType DamageEnum, i
  */
 bool UVitalityStatComponent::SetGearResistanceValue(EDamageType DamageEnum, int NewValue)
 {
-	return SetNewDamageResistanceValue(&_GearStats, DamageEnum, NewValue);
+	return SetNewDamageResistanceValue(_GearStats, DamageEnum, NewValue);
 }
 
 /**
@@ -41,7 +41,7 @@ bool UVitalityStatComponent::SetGearResistanceValue(EDamageType DamageEnum, int 
  */
 bool UVitalityStatComponent::SetMagicalResistanceValue(EDamageType DamageEnum, int NewValue)
 {
-	return SetNewDamageResistanceValue(&_ModifiedStats, DamageEnum, NewValue);
+	return SetNewDamageResistanceValue(_ModifiedStats, DamageEnum, NewValue);
 }
 
 /**
@@ -52,7 +52,7 @@ bool UVitalityStatComponent::SetMagicalResistanceValue(EDamageType DamageEnum, i
  */
 bool UVitalityStatComponent::SetOtherResistanceValue(EDamageType DamageEnum, int NewValue)
 {
-	return SetNewDamageResistanceValue(&_OtherStats, DamageEnum, NewValue);
+	return SetNewDamageResistanceValue(_OtherStats, DamageEnum, NewValue);
 }
 
 /**
@@ -60,9 +60,9 @@ bool UVitalityStatComponent::SetOtherResistanceValue(EDamageType DamageEnum, int
  * @param DamageEnum The damage enum to get the natural resistance for
  * @return Returns the resistance value, or zero if it does not exist
  */
-float UVitalityStatComponent::GetNaturalResistanceValue(EDamageType DamageEnum) const
+float UVitalityStatComponent::GetNaturalResistanceValue(EDamageType DamageEnum)
 {
-	return GetDamageResistanceValue(&_BaseStats, DamageEnum);
+	return GetDamageResistanceValue(_BaseStats, DamageEnum);
 }
 
 /**
@@ -70,9 +70,9 @@ float UVitalityStatComponent::GetNaturalResistanceValue(EDamageType DamageEnum) 
  * @param DamageEnum The damage enum to get the gear resistance for
  * @return Returns the resistance value, or zero if it does not exist
  */
-float UVitalityStatComponent::GetGearResistanceValue(EDamageType DamageEnum) const
+float UVitalityStatComponent::GetGearResistanceValue(EDamageType DamageEnum)
 {
-	return GetDamageResistanceValue(&_GearStats, DamageEnum);
+	return GetDamageResistanceValue(_GearStats, DamageEnum);
 }
 
 /**
@@ -80,9 +80,9 @@ float UVitalityStatComponent::GetGearResistanceValue(EDamageType DamageEnum) con
  * @param DamageEnum The damage enum to get the magical resistance for
  * @return Returns the resistance value, or zero if it does not exist
  */
-float UVitalityStatComponent::GetMagicalResistanceValue(EDamageType DamageEnum) const
+float UVitalityStatComponent::GetMagicalResistanceValue(EDamageType DamageEnum)
 {
-	return GetDamageResistanceValue(&_ModifiedStats, DamageEnum);
+	return GetDamageResistanceValue(_ModifiedStats, DamageEnum);
 }
 
 /**
@@ -90,9 +90,9 @@ float UVitalityStatComponent::GetMagicalResistanceValue(EDamageType DamageEnum) 
  * @param DamageEnum The damage enum to get the other-type resistance for
  * @return Returns the resistance value, or zero if it does not exist
  */
-float UVitalityStatComponent::GetOtherResistanceValue(EDamageType DamageEnum) const
+float UVitalityStatComponent::GetOtherResistanceValue(EDamageType DamageEnum)
 {
-	return GetDamageResistanceValue(&_OtherStats, DamageEnum);
+	return GetDamageResistanceValue(_OtherStats, DamageEnum);
 }
 
 /**
@@ -103,7 +103,7 @@ float UVitalityStatComponent::GetOtherResistanceValue(EDamageType DamageEnum) co
  */
 bool UVitalityStatComponent::SetNaturalDamageBonusValue(EDamageType DamageEnum, int NewValue)
 {
-	return SetNewDamageBonusValue(&_BaseStats, DamageEnum, NewValue);
+	return SetNewDamageBonusValue(_BaseStats, DamageEnum, NewValue);
 }
 
 /**
@@ -114,7 +114,7 @@ bool UVitalityStatComponent::SetNaturalDamageBonusValue(EDamageType DamageEnum, 
  */
 bool UVitalityStatComponent::SetGearDamageBonusValue(EDamageType DamageEnum, int NewValue)
 {
-	return SetNewDamageBonusValue(&_GearStats, DamageEnum, NewValue);
+	return SetNewDamageBonusValue(_GearStats, DamageEnum, NewValue);
 }
 
 
@@ -126,7 +126,7 @@ bool UVitalityStatComponent::SetGearDamageBonusValue(EDamageType DamageEnum, int
  */
 bool UVitalityStatComponent::SetMagicalDamageBonusValue(EDamageType DamageEnum, int NewValue)
 {
-	return SetNewDamageBonusValue(&_ModifiedStats, DamageEnum, NewValue);
+	return SetNewDamageBonusValue(_ModifiedStats, DamageEnum, NewValue);
 }
 
 
@@ -138,7 +138,7 @@ bool UVitalityStatComponent::SetMagicalDamageBonusValue(EDamageType DamageEnum, 
  */
 bool UVitalityStatComponent::SetOtherDamageBonusValue(EDamageType DamageEnum, int NewValue)
 {
-	return SetNewDamageBonusValue(&_OtherStats, DamageEnum, NewValue);
+	return SetNewDamageBonusValue(_OtherStats, DamageEnum, NewValue);
 }
 
 /**
@@ -146,9 +146,9 @@ bool UVitalityStatComponent::SetOtherDamageBonusValue(EDamageType DamageEnum, in
  * @param DamageEnum The damage enum to get the natural damage bonus for
  * @return Returns the damage bonus value, or zero if it does not exist
  */
-float UVitalityStatComponent::GetNaturalDamageBonusValue(EDamageType DamageEnum) const
+float UVitalityStatComponent::GetNaturalDamageBonusValue(EDamageType DamageEnum)
 {
-	return GetDamageBonusValue(&_BaseStats, DamageEnum);
+	return GetDamageBonusValue(_BaseStats, DamageEnum);
 }
 
 /**
@@ -156,9 +156,9 @@ float UVitalityStatComponent::GetNaturalDamageBonusValue(EDamageType DamageEnum)
  * @param DamageEnum The damage enum to get the gear damage bonus for
  * @return Returns the damage bonus value, or zero if it does not exist
  */
-float UVitalityStatComponent::GetGearDamageBonusValue(EDamageType DamageEnum) const
+float UVitalityStatComponent::GetGearDamageBonusValue(EDamageType DamageEnum)
 {
-	return GetDamageBonusValue(&_GearStats, DamageEnum);
+	return GetDamageBonusValue(_GearStats, DamageEnum);
 }
 
 
@@ -167,9 +167,9 @@ float UVitalityStatComponent::GetGearDamageBonusValue(EDamageType DamageEnum) co
  * @param DamageEnum The damage enum to get the magic damage bonus for
  * @return Returns the damage bonus value, or zero if it does not exist
  */
-float UVitalityStatComponent::GetMagicalDamageBonusValue(EDamageType DamageEnum) const
+float UVitalityStatComponent::GetMagicalDamageBonusValue(EDamageType DamageEnum)
 {
-	return GetDamageBonusValue(&_ModifiedStats, DamageEnum);
+	return GetDamageBonusValue(_ModifiedStats, DamageEnum);
 }
 
 
@@ -178,9 +178,9 @@ float UVitalityStatComponent::GetMagicalDamageBonusValue(EDamageType DamageEnum)
  * @param DamageEnum The damage enum to get the other-type damage bonus for
  * @return Returns the damage bonus value, or zero if it does not exist
  */
-float UVitalityStatComponent::GetOtherDamageBonusValue(EDamageType DamageEnum) const
+float UVitalityStatComponent::GetOtherDamageBonusValue(EDamageType DamageEnum)
 {
-	return GetDamageBonusValue(&_OtherStats, DamageEnum);
+	return GetDamageBonusValue(_OtherStats, DamageEnum);
 }
 
 /**
@@ -188,7 +188,7 @@ float UVitalityStatComponent::GetOtherDamageBonusValue(EDamageType DamageEnum) c
  * @param DamageEnum The damage enum to get the total damage resistance for
  * @return Returns the total damage resistance value across all arrays
  */
-float UVitalityStatComponent::GetTotalResistance(EDamageType DamageEnum) const
+float UVitalityStatComponent::GetTotalResistance(EDamageType DamageEnum)
 {
 	return (
 		  GetNaturalResistanceValue(DamageEnum) + GetMagicalResistanceValue(DamageEnum)
@@ -201,7 +201,7 @@ float UVitalityStatComponent::GetTotalResistance(EDamageType DamageEnum) const
  * @param DamageEnum The damage enum to get the total damage bonus for
  * @return Returns the total damage bonus value across all arrays
  */
-float UVitalityStatComponent::GetTotalDamageBonus(EDamageType DamageEnum) const
+float UVitalityStatComponent::GetTotalDamageBonus(EDamageType DamageEnum)
 {
 	return (
 		  GetNaturalDamageBonusValue(DamageEnum) + GetMagicalDamageBonusValue(DamageEnum)
@@ -216,7 +216,7 @@ float UVitalityStatComponent::GetTotalDamageBonus(EDamageType DamageEnum) const
  */
 bool UVitalityStatComponent::SetNaturalCoreStat(EVitalityStat StatEnum, float NewValue)
 {
-	return SetNewCoreStatsValue(&_BaseStats, StatEnum, NewValue);
+	return SetNewCoreStatsValue(_BaseStats, StatEnum, NewValue);
 }
 
 /**
@@ -226,7 +226,7 @@ bool UVitalityStatComponent::SetNaturalCoreStat(EVitalityStat StatEnum, float Ne
  */
 bool UVitalityStatComponent::SetGearCoreStat(EVitalityStat StatEnum, float NewValue)
 {
-	return SetNewCoreStatsValue(&_GearStats, StatEnum, NewValue);
+	return SetNewCoreStatsValue(_GearStats, StatEnum, NewValue);
 }
 
 /**
@@ -236,7 +236,7 @@ bool UVitalityStatComponent::SetGearCoreStat(EVitalityStat StatEnum, float NewVa
  */
 bool UVitalityStatComponent::SetMagicalCoreStat(EVitalityStat StatEnum, float NewValue)
 {
-	return SetNewCoreStatsValue(&_ModifiedStats, StatEnum, NewValue);
+	return SetNewCoreStatsValue(_ModifiedStats, StatEnum, NewValue);
 }
 
 /**
@@ -246,7 +246,7 @@ bool UVitalityStatComponent::SetMagicalCoreStat(EVitalityStat StatEnum, float Ne
  */
 bool UVitalityStatComponent::SetOtherCoreStat(EVitalityStat StatEnum, float NewValue)
 {
-	return SetNewCoreStatsValue(&_OtherStats, StatEnum, NewValue);
+	return SetNewCoreStatsValue(_OtherStats, StatEnum, NewValue);
 }
 
 /**
@@ -254,11 +254,11 @@ bool UVitalityStatComponent::SetOtherCoreStat(EVitalityStat StatEnum, float NewV
  * @param StatEnum The vitality stat to get the value for
  * @return The total value, or zero, if the enum is not used.
  */
-float UVitalityStatComponent::GetTotalCoreStat(EVitalityStat StatEnum) const
+float UVitalityStatComponent::GetTotalCoreStat(EVitalityStat StatEnum)
 {
 	return (
-		GetCoreStatValue(&_BaseStats, StatEnum) + GetCoreStatValue(&_GearStats, StatEnum)
-	  + GetCoreStatValue(&_ModifiedStats, StatEnum) + GetCoreStatValue(&_OtherStats, StatEnum)
+		GetCoreStatValue(_BaseStats, StatEnum) + GetCoreStatValue(_GearStats, StatEnum)
+	  + GetCoreStatValue(_ModifiedStats, StatEnum) + GetCoreStatValue(_OtherStats, StatEnum)
 	);
 }
 
@@ -267,9 +267,9 @@ float UVitalityStatComponent::GetTotalCoreStat(EVitalityStat StatEnum) const
  * @param StatEnum The vitality stat to get the value for
  * @return The value of the natural core stat, or zero if not set or used.
  */
-float UVitalityStatComponent::GetNaturalCoreStat(EVitalityStat StatEnum) const
+float UVitalityStatComponent::GetNaturalCoreStat(EVitalityStat StatEnum)
 {
-	return GetCoreStatValue(&_BaseStats, StatEnum);
+	return GetCoreStatValue(_BaseStats, StatEnum);
 }
 
 /**
@@ -277,9 +277,9 @@ float UVitalityStatComponent::GetNaturalCoreStat(EVitalityStat StatEnum) const
  * @param StatEnum The vitality stat to get the value for
  * @return The value of the gear-based core stat, or zero if not set or used.
  */
-float UVitalityStatComponent::GetGearCoreStat(EVitalityStat StatEnum) const
+float UVitalityStatComponent::GetGearCoreStat(EVitalityStat StatEnum)
 {
-	return GetCoreStatValue(&_GearStats, StatEnum);
+	return GetCoreStatValue(_GearStats, StatEnum);
 }
 
 /**
@@ -287,9 +287,9 @@ float UVitalityStatComponent::GetGearCoreStat(EVitalityStat StatEnum) const
  * @param StatEnum The vitality stat to get the value for
  * @return The value of the magical core stat, or zero if not set or used.
  */
-float UVitalityStatComponent::GetMagicalCoreStat(EVitalityStat StatEnum) const
+float UVitalityStatComponent::GetMagicalCoreStat(EVitalityStat StatEnum)
 {
-	return GetCoreStatValue(&_ModifiedStats, StatEnum);
+	return GetCoreStatValue(_ModifiedStats, StatEnum);
 }
 
 /**
@@ -297,14 +297,20 @@ float UVitalityStatComponent::GetMagicalCoreStat(EVitalityStat StatEnum) const
  * @param StatEnum The vitality stat to get the value for
  * @return The value of the other-type core stat, or zero if not set or used.
  */
-float UVitalityStatComponent::GetOtherCoreStat(EVitalityStat StatEnum) const
+float UVitalityStatComponent::GetOtherCoreStat(EVitalityStat StatEnum)
 {
-	return GetCoreStatValue(&_OtherStats, StatEnum);
+	return GetCoreStatValue(_OtherStats, StatEnum);
+}
+
+void UVitalityStatComponent::ReloadSettings()
+{
+	
 }
 
 void UVitalityStatComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	ReloadSettings();
 }
 
 void UVitalityStatComponent::OnComponentCreated()
@@ -330,14 +336,14 @@ void UVitalityStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
  * @return A pointer to the actual damage map
  */
 FStVitalityDamageMap* UVitalityStatComponent::FindDamageResistanceMap(
-		const FStVitalityStats& ArrayReference, const EDamageType DamageEnum) const
+		FStVitalityStats& ArrayReference, const EDamageType DamageEnum)
 {
 	// Iterate the actual resistance map
-	for (FStVitalityDamageMap* DamageMap : &ArrayReference.DamageResistances)
+	for (FStVitalityDamageMap& DamageMap : ArrayReference.DamageResistances)
 	{
 		// Return a pointer to the actual resistance map
-		if (DamageMap->DamageType == DamageEnum)
-			return DamageMap;
+		if (DamageMap.DamageType == DamageEnum)
+			return &DamageMap;
 	}
 	return nullptr;
 }
@@ -349,14 +355,14 @@ FStVitalityDamageMap* UVitalityStatComponent::FindDamageResistanceMap(
  * @return A pointer to the actual damage map
  */
 FStVitalityDamageMap* UVitalityStatComponent::FindDamageBonusMap(
-		const FStVitalityStats& ArrayReference, const EDamageType DamageEnum) const
+		FStVitalityStats& ArrayReference, const EDamageType DamageEnum)
 {
 	// Iterate the actual bonus map
-	for (FStVitalityDamageMap* DamageMap : &ArrayReference.DamageBonuses)
+	for (FStVitalityDamageMap& DamageMap : ArrayReference.DamageBonuses)
 	{
 		// Return a pointer to the actual resistance map
-		if (DamageMap->DamageType == DamageEnum)
-			return DamageMap;
+		if (DamageMap.DamageType == DamageEnum)
+			return &DamageMap;
 	}
 	return nullptr;
 }
@@ -368,14 +374,14 @@ FStVitalityDamageMap* UVitalityStatComponent::FindDamageBonusMap(
  * @return A pointer to the actual stat map
  */
 FStVitalityStatMap* UVitalityStatComponent::FindCoreStatsMap(
-	const FStVitalityStats& ArrayReference, const EVitalityStat StatEnum) const
+	FStVitalityStats& ArrayReference, const EVitalityStat StatEnum)
 {
 	// Iterate the actual core stat map
-	for (FStVitalityStatMap* CoreStat : &ArrayReference.CoreStats)
+	for (FStVitalityStatMap& CoreStat : ArrayReference.CoreStats)
 	{
 		// Return a pointer to the core stat map
-		if (CoreStat->StatEnum == StatEnum)
-			return CoreStat;
+		if (CoreStat.StatEnum == StatEnum)
+			return &CoreStat;
 	}
 	return nullptr;
 }
@@ -388,24 +394,19 @@ FStVitalityStatMap* UVitalityStatComponent::FindCoreStatsMap(
  * @return True on success, false otherwise
  */
 bool UVitalityStatComponent::SetNewDamageResistanceValue(
-	FStVitalityStats* StatsMap, const EDamageType DamageEnum, const int NewValue)
+	FStVitalityStats& StatsMap, const EDamageType DamageEnum, const int NewValue)
 {
-	if (StatsMap != nullptr)
+	const float OldValue = GetDamageResistanceValue(StatsMap, DamageEnum);
+	FStVitalityDamageMap* DamageMap = FindDamageResistanceMap(StatsMap, DamageEnum);
+	if (DamageMap != nullptr)
 	{
-		const float OldValue = GetDamageResistanceValue(StatsMap, DamageEnum);
-		FStVitalityDamageMap* DamageMap = FindDamageResistanceMap(*StatsMap, DamageEnum);
-		if (DamageMap != nullptr)
-		{
-			DamageMap->MapValue = NewValue;
-			StatsMap->OnDamageResistanceUpdated.Broadcast(DamageEnum, OldValue, NewValue);
-			return true;
-		}
-		StatsMap->DamageResistances.Add(FStVitalityDamageMap(DamageEnum, NewValue));
-		StatsMap->OnDamageResistanceUpdated.Broadcast(DamageEnum, OldValue, NewValue);
+		DamageMap->MapValue = NewValue;
+		StatsMap.OnDamageResistanceUpdated.Broadcast(DamageEnum, OldValue, NewValue);
 		return true;
 	}
-	UE_LOG(LogTemp, Error, TEXT("SetNewDamageResistanceValue(): StatsMap passed as INVALID PTR"));
-	return false;
+	StatsMap.DamageResistances.Add(FStVitalityDamageMap(DamageEnum, NewValue));
+	StatsMap.OnDamageResistanceUpdated.Broadcast(DamageEnum, OldValue, NewValue);
+	return true;
 }
 
 /**
@@ -416,24 +417,19 @@ bool UVitalityStatComponent::SetNewDamageResistanceValue(
  * @return True on success, false otherwise
  */
 bool UVitalityStatComponent::SetNewDamageBonusValue(
-	FStVitalityStats* StatsMap, const EDamageType DamageEnum, const int NewValue)
+	FStVitalityStats& StatsMap, const EDamageType DamageEnum, const int NewValue)
 {
-	if (StatsMap != nullptr)
+	const float OldValue = GetDamageBonusValue(StatsMap, DamageEnum);
+	FStVitalityDamageMap* DamageMap = FindDamageBonusMap(StatsMap, DamageEnum);
+	if (DamageMap != nullptr)
 	{
-		const float OldValue = GetDamageBonusValue(StatsMap, DamageEnum);
-		FStVitalityDamageMap* DamageMap = FindDamageBonusMap(*StatsMap, DamageEnum);
-		if (DamageMap != nullptr)
-		{
-			DamageMap->MapValue = NewValue;
-			StatsMap->OnDamageBonusUpdated.Broadcast(DamageEnum, OldValue, NewValue);
-			return true;
-		}
-		StatsMap->DamageBonuses.Add(FStVitalityDamageMap(DamageEnum, NewValue));
-		StatsMap->OnDamageBonusUpdated.Broadcast(DamageEnum, OldValue, NewValue);
+		DamageMap->MapValue = NewValue;
+		StatsMap.OnDamageBonusUpdated.Broadcast(DamageEnum, OldValue, NewValue);
 		return true;
 	}
-	UE_LOG(LogTemp, Error, TEXT("SetNewDamageBonusValue(): StatsMap passed as INVALID PTR"));
-	return false;
+	StatsMap.DamageBonuses.Add(FStVitalityDamageMap(DamageEnum, NewValue));
+	StatsMap.OnDamageBonusUpdated.Broadcast(DamageEnum, OldValue, NewValue);
+	return true;
 }
 
 
@@ -444,25 +440,20 @@ bool UVitalityStatComponent::SetNewDamageBonusValue(
  * @param NewValue The new value for the given enum of the given map
  * @return True on success, false otherwise
  */
-bool UVitalityStatComponent::SetNewCoreStatsValue(FStVitalityStats* StatsMap,
+bool UVitalityStatComponent::SetNewCoreStatsValue(FStVitalityStats& StatsMap,
 	const EVitalityStat StatEnum, const int NewValue)
 {
-	if (StatsMap != nullptr)
+	const float OldValue = GetCoreStatValue(StatsMap, StatEnum);
+	FStVitalityStatMap* DamageMap = FindCoreStatsMap(StatsMap, StatEnum);
+	if (DamageMap != nullptr)
 	{
-		const float OldValue = GetCoreStatValue(StatsMap, StatEnum);
-		FStVitalityStatMap* DamageMap = FindCoreStatsMap(*StatsMap, StatEnum);
-		if (DamageMap != nullptr)
-		{
-			DamageMap->MapValue = NewValue;
-			StatsMap->OnCoreStatUpdated.Broadcast(StatEnum, OldValue, NewValue);
-			return true;
-		}
-		StatsMap->CoreStats.Add(FStVitalityStatMap(StatEnum, NewValue));
-		StatsMap->OnCoreStatUpdated.Broadcast(StatEnum, OldValue, NewValue);
+		DamageMap->MapValue = NewValue;
+		StatsMap.OnCoreStatUpdated.Broadcast(StatEnum, OldValue, NewValue);
 		return true;
 	}
-	UE_LOG(LogTemp, Error, TEXT("SetNewCoreStatsValue(): StatsMap passed as INVALID PTR"));
-	return false;
+	StatsMap.CoreStats.Add(FStVitalityStatMap(StatEnum, NewValue));
+	StatsMap.OnCoreStatUpdated.Broadcast(StatEnum, OldValue, NewValue);
+	return true;
 }
 
 /**
@@ -472,9 +463,9 @@ bool UVitalityStatComponent::SetNewCoreStatsValue(FStVitalityStats* StatsMap,
  * @return The value of the enum. Returns zero if unused or unset.
  */
 float UVitalityStatComponent::GetDamageResistanceValue(
-	const FStVitalityStats* StatsMap, const EDamageType DamageEnum) const
+	FStVitalityStats& StatsMap, const EDamageType DamageEnum)
 {
-	const FStVitalityDamageMap* DamageMap = FindDamageResistanceMap(*StatsMap, DamageEnum);
+	const FStVitalityDamageMap* DamageMap = FindDamageResistanceMap(StatsMap, DamageEnum);
 	if (DamageMap != nullptr)
 		return DamageMap->MapValue;
 	return 0.f;
@@ -487,9 +478,9 @@ float UVitalityStatComponent::GetDamageResistanceValue(
  * @return The value of the enum. Returns zero if unused or unset.
  */
 float UVitalityStatComponent::GetDamageBonusValue(
-	const FStVitalityStats* StatsMap, const EDamageType DamageEnum) const
+	FStVitalityStats& StatsMap, const EDamageType DamageEnum)
 {
-	const FStVitalityDamageMap* DamageMap = FindDamageBonusMap(*StatsMap, DamageEnum);
+	const FStVitalityDamageMap* DamageMap = FindDamageBonusMap(StatsMap, DamageEnum);
 	if (DamageMap != nullptr)
 		return DamageMap->MapValue;
 	return 0.f;
@@ -502,9 +493,9 @@ float UVitalityStatComponent::GetDamageBonusValue(
  * @return The value of the enum. Returns zero if unused or unset.
  */
 float UVitalityStatComponent::GetCoreStatValue(
-	const FStVitalityStats* StatsMap, const EVitalityStat StatEnum) const
+	FStVitalityStats& StatsMap, const EVitalityStat StatEnum)
 {
-	const FStVitalityStatMap* DamageMap = FindCoreStatsMap(*StatsMap, StatEnum);
+	const FStVitalityStatMap* DamageMap = FindCoreStatsMap(StatsMap, StatEnum);
 	if (DamageMap != nullptr)
 		return DamageMap->MapValue;
 	return 0.f;

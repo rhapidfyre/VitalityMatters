@@ -27,12 +27,19 @@ void UVitalityWelfareComponent::ReloadSettings()
 		_HealthCurrent			= CurrentValueIsValid	? StartingHealthCurrent	: 1.f;
 		_HealthRegenAtRest		= RegenValueIsValid		? PassiveHealthRegen	: 1.f;
 		_HealthTimerTickRate	= TimerTickRateIsValid	? HealthTimerTickRate	: 0.5;
+		
 		if (_HealthCurrent < _HealthMax)
 		{
 			FTimerDelegate InitDelegate;
 			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickHealth);
 			InitializeTimer(_HealthTimer, InitDelegate);
+			if (_HealthCurrent <= 0.f && !GetIsDead())
+			{
+				_IsDead = true;
+				OnDeath.Broadcast(nullptr);
+			}
 		}
+		
 	}
 	else
 	{
@@ -52,12 +59,14 @@ void UVitalityWelfareComponent::ReloadSettings()
 		_StaminaCurrent			= CurrentValueIsValid	? StartingStaminaCurrent	: 1.f;
 		_StaminaRegenAtRest		= RegenValueIsValid		? PassiveStaminaRegen		: 1.f;
 		_StaminaTimerTickRate	= TimerTickRateIsValid	? StaminaTimerTickRate		: 0.5;
+		
 		if (_StaminaCurrent < _StaminaMax)
 		{
 			FTimerDelegate InitDelegate;
 			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickStamina);
 			InitializeTimer(_StaminaTimer, InitDelegate);
 		}
+		
 	}
 	else
 	{
@@ -77,12 +86,14 @@ void UVitalityWelfareComponent::ReloadSettings()
 		_MagicCurrent		= CurrentValueIsValid	? StartingMagicCurrent	: 1.f;
 		_MagicRegenAtRest	= RegenValueIsValid		? PassiveMagicRegen		: 1.f;
 		_MagicTimerTickRate	= TimerTickRateIsValid	? MagicTimerTickRate	: 0.5;
+		
 		if (_MagicCurrent < _MagicMax)
 		{
 			FTimerDelegate InitDelegate;
 			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickMagic);
 			InitializeTimer(_MagicTimer, InitDelegate);
 		}
+		
 	}
 	else
 	{
@@ -98,6 +109,7 @@ void UVitalityWelfareComponent::ReloadSettings()
 		_HydrationCurrent		= StartingMagicCurrent		> 0.f	? StartingMagicCurrent		: 1.f;
 		_HydrationDrainAtRest	= PassiveHydrationDrain		> 0.f	? PassiveHydrationDrain		: 0.082;
 		_HydrationTimerTickRate	= HydrationTimerTickRate	> 0.f	? HydrationTimerTickRate	: 0.5;
+
 		if (_HydrationCurrent < _HydrationMax)
 		{
 			FTimerDelegate InitDelegate;
@@ -109,12 +121,14 @@ void UVitalityWelfareComponent::ReloadSettings()
 		_CaloriesCurrent		= StartingHungerCurrent	> 0.f	? StartingHungerCurrent	: 1.f;
 		_CaloriesDrainAtRest	= PassiveHungerDrain	> 0.f	? PassiveHungerDrain	: 0.082;
 		_HungerTimerTickRate	= CaloriesTimerTickRate	> 0.f	? CaloriesTimerTickRate	: 0.5;
+
 		if (_CaloriesCurrent < _CaloriesMax)
 		{
 			FTimerDelegate InitDelegate;
 			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickMagic);
 			InitializeTimer(_CaloriesTimer, InitDelegate);
 		}
+		
 	}
 	else
 	{
@@ -136,7 +150,7 @@ float UVitalityWelfareComponent::DamageHealth(AActor* DamageInstigator, float Da
 	const float NewDamageValue = abs(DamageTaken);
 	if (!FMath::IsNearlyZero(NewDamageValue))
 	{
-		if (!GetIsDead)
+		if (!GetIsDead())
 		{
 			bool IsNewDamage = true;
 			for (FStDamageData DamageData : _DamageHistory)
@@ -217,26 +231,26 @@ bool UVitalityWelfareComponent::StartTimerForCategory(EVitalityCategory Vitality
 	{
 	case EVitalityCategory::STAMINA:
 		TimerReference = &_StaminaTimer;
-		TimerDelegate.BindUObject(this, UVitalityWelfareComponent::TickStamina);
+		TimerDelegate.BindUObject(this, &UVitalityWelfareComponent::TickStamina);
 		TimerTickRate = _StaminaTimerTickRate;
 		break;
 	case EVitalityCategory::MAGIC:
 		TimerReference = &_MagicTimer;
-		TimerDelegate.BindUObject(this, UVitalityWelfareComponent::TickMagic);
+		TimerDelegate.BindUObject(this, &UVitalityWelfareComponent::TickMagic);
 		TimerTickRate = _MagicTimerTickRate;
 		break;
 	case EVitalityCategory::THIRST:
 		TimerReference = &_HydrationTimer;
-		TimerDelegate.BindUObject(this, UVitalityWelfareComponent::TickHydration);
+		TimerDelegate.BindUObject(this, &UVitalityWelfareComponent::TickHydration);
 		TimerTickRate = _HydrationTimerTickRate;
 		break;
 	case EVitalityCategory::HUNGER:
 		TimerReference = &_CaloriesTimer;
-		TimerDelegate.BindUObject(this, UVitalityWelfareComponent::TickCalories);
+		TimerDelegate.BindUObject(this, &UVitalityWelfareComponent::TickCalories);
 		TimerTickRate = _HungerTimerTickRate;
 		break;
 	default:
-		TimerDelegate.BindUObject(this, UVitalityWelfareComponent::TickHealth);
+		TimerDelegate.BindUObject(this, &UVitalityWelfareComponent::TickHealth);
 		break;
 	}
 	
@@ -452,13 +466,20 @@ void UVitalityWelfareComponent::ResetCombatState()
 // Forces the combat state to be in an engaged state
 void UVitalityWelfareComponent::SetCombatEngaged()
 {
-	
 	if (GetCombatState() == ECombatState::ENGAGED)
 		return;
 	const ECombatState OldState = _CombatState;
 	_CombatState = ECombatState::ENGAGED;
 	OnCombatStateChanged.Broadcast(OldState,
 		ECombatState::ENGAGED);
+}
+
+void UVitalityWelfareComponent::SetCombatAlert()
+{
+	const ECombatState OldState = GetCombatState();
+	if (OldState == ECombatState::ENGAGED || OldState == ECombatState::ALERT)
+		return;
+	SetCombatState(ECombatState::ENGAGED);
 }
 
 void UVitalityWelfareComponent::BeginPlay()
@@ -597,6 +618,7 @@ void UVitalityWelfareComponent::TickHydration()
 
 void UVitalityWelfareComponent::SetCombatState(ECombatState CombatState)
 {
+	const ECombatState OldCombatState = GetCombatState();
 	float CombatTimer = 0.f;
 		
 	// Everytime hostile action is taken, reset the timer
@@ -609,17 +631,16 @@ void UVitalityWelfareComponent::SetCombatState(ECombatState CombatState)
 		
 	if (GetCombatState() != CombatState)
 	{
-		DecreaseCombatState();
-		const ECombatState NewCombatState = GetCombatState();
-		if (NewCombatState != ECombatState::ENGAGED)
+		_CombatState = CombatState;
+		if (CombatState != ECombatState::ENGAGED)
 		{
 			// Player has either acquired or sustained alertness
-			if (NewCombatState == ECombatState::ALERT)
+			if (CombatState == ECombatState::ALERT)
 			{
 				CombatTimer = 3.f;
 			}
 			// Player is now engaged in combat
-			else if (NewCombatState == ECombatState::ENGAGED)
+			else if (CombatState == ECombatState::ENGAGED)
 			{
 				CombatTimer = 10.f;
 			}
@@ -627,11 +648,12 @@ void UVitalityWelfareComponent::SetCombatState(ECombatState CombatState)
 		else
 		{
 			// Player has left combat and is coming down from engagement
-			if (NewCombatState == ECombatState::ALERT)
+			if (CombatState == ECombatState::ALERT)
 			{
 				CombatTimer = 10.f;
 			}
 		}
+		OnCombatStateChanged.Broadcast(OldCombatState, GetCombatState());
 			
 	}
 
@@ -644,6 +666,14 @@ void UVitalityWelfareComponent::SetCombatState(ECombatState CombatState)
 			&UVitalityWelfareComponent::DecreaseCombatState, CombatTimer, false);
 	}
 	
+}
+
+void UVitalityWelfareComponent::OnRep_IsDeadChanged_Implementation(bool WasDeadBefore)
+{
+	if (!WasDeadBefore)
+	{
+		OnDeath.Broadcast(nullptr);
+	}
 }
 
 void UVitalityWelfareComponent::OnRep_CombatStateChanged_Implementation(ECombatState OldCombatState)

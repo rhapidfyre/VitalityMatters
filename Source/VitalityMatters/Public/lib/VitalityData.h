@@ -6,22 +6,23 @@
 #include "VitalityEnums.h"
 #include "UObject/Object.h"
 #include "Delegates/Delegate.h"
+
 #include "VitalityData.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FOnCoreStatUpdated, EVitalityStat, CoreStat, float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnCoreStatUpdated,
+	EVitalityStat, CoreStat, float, OldValue, float, NewValue);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FOnDamageBonusUpdated, EDamageType, DamageEnum, float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnDamageBonusUpdated,
+	EDamageType, DamageEnum, float, OldValue, float, NewValue);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FOnDamageResistanceUpdated, EDamageType, DamageEnum, float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnDamageResistanceUpdated,
+	EDamageType, DamageEnum, float, OldValue, float, NewValue);
 
 
 USTRUCT(BlueprintType)
 struct FStDamageData
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 	FStDamageData() {};
 	FStDamageData(AActor* DamageActor, float DamageValue)
 	{
@@ -39,8 +40,8 @@ USTRUCT(BlueprintType)
 struct FStVitalityStatMap
 {
 	GENERATED_BODY()
-	FStVitalityStatMap() {};
-	FStVitalityStatMap(EVitalityStat CoreStat, float NewValue);
+	FStVitalityStatMap() {}
+	FStVitalityStatMap(EVitalityStat CoreStat, float NewValue)
 	{
 		StatEnum   = CoreStat;
 		MapValue   = NewValue;
@@ -54,7 +55,7 @@ struct FStVitalityDamageMap
 {
 	GENERATED_BODY()
 	FStVitalityDamageMap() {};
-	FStVitalityDamageMap(EDamageType DamageEnum, float NewValue);
+	FStVitalityDamageMap(EDamageType DamageEnum, float NewValue)
 	{
 		DamageType = DamageEnum;
 		MapValue   = NewValue;
@@ -90,7 +91,7 @@ class UDamageTypeBase : public UDamageType
 	
 public:
 	
-	UDamageTypeBase() {};
+	UDamageTypeBase() {}
 	
 	UFUNCTION(BlueprintCallable)
 	float GetDamageValue() const { return DamageValue; }

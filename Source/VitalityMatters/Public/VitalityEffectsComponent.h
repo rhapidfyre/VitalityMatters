@@ -48,8 +48,8 @@ public:
 	UFUNCTION(BlueprintPure) int GetNumberOfActiveEffects() const { return _CurrentEffects.Num(); }
 
 	UFUNCTION(BlueprintPure) TArray<FStVitalityEffects> GetAllActiveEffects() const { return _CurrentEffects; }
-	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByBenefit(EEffectsBeneficial BenefitEffect) const;
-	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect) const;
+	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByBenefit(EEffectsBeneficial BenefitEffect);
+	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect);
 	
 	UFUNCTION(BlueprintPure) bool IsEffectActive(FName EffectName) const;
 	UFUNCTION(BlueprintPure) bool IsEffectIdActive(int UniqueId) const;
@@ -75,7 +75,7 @@ private:
 	int GenerateUniqueId();
 
 	UFUNCTION(Client, Reliable)
-	void OnRep_CurrentEffectsChanged(TArray<FStVitalityEffects> OldEffects);
+	void OnRep_CurrentEffectsChanged(const TArray<FStVitalityEffects>& OldEffects);
 	
 public:
 	
@@ -101,7 +101,7 @@ private:
 	
 	UPROPERTY() FTimerHandle _EffectsTimer;
 
-	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CurrentEffects)
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CurrentEffectsChanged)
 	TArray<FStVitalityEffects> _CurrentEffects;
 
 	

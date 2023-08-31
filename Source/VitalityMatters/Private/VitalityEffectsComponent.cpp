@@ -3,6 +3,7 @@
 
 #include "VitalityEffectsComponent.h"
 
+#include "Net/UnrealNetwork.h"
 
 
 UVitalityEffectsComponent::UVitalityEffectsComponent()
@@ -265,9 +266,9 @@ int UVitalityEffectsComponent::GetNumberOfActiveBenefits(EEffectsBeneficial Bene
 	if (BenefitEffect == EEffectsBeneficial::NONE) return 0;
 	int NumEffectsActive(0);
 	FRWScopeLock WriteLock(_EffectsLock, SLT_ReadOnly);
-	for (const FStVitalityEffects* CurrentEffect : &_CurrentEffects)
+	for (const FStVitalityEffects& CurrentEffect : _CurrentEffects)
 	{
-		if (CurrentEffect->benefitEffect == BenefitEffect)
+		if (CurrentEffect.benefitEffect == BenefitEffect)
 			NumEffectsActive += 1;
 	}
 	return NumEffectsActive;
@@ -284,9 +285,9 @@ int UVitalityEffectsComponent::GetNumberOfActiveDetriments(EEffectsDetrimental D
 	if (DetrimentEffect == EEffectsDetrimental::NONE) return 0;
 	int NumEffectsActive(0);
 	FRWScopeLock WriteLock(_EffectsLock, SLT_ReadOnly);
-	for (const FStVitalityEffects* CurrentEffect : &_CurrentEffects)
+	for (const FStVitalityEffects& CurrentEffect : _CurrentEffects)
 	{
-		if (CurrentEffect->detrimentEffect == DetrimentEffect)
+		if (CurrentEffect.detrimentEffect == DetrimentEffect)
 			NumEffectsActive += 1;
 	}
 	return NumEffectsActive;
@@ -299,11 +300,12 @@ int UVitalityEffectsComponent::GetNumberOfActiveDetriments(EEffectsDetrimental D
  * @return An array with copies of all active benefit effects
  */
 TArray<FStVitalityEffects> UVitalityEffectsComponent::GetAllEffectsByBenefit(
-	EEffectsBeneficial BenefitEffect) const
+	EEffectsBeneficial BenefitEffect)
 {
 	if (BenefitEffect == EEffectsBeneficial::NONE) return {};
 	TArray<FStVitalityEffects> EffectCopies;
-	for (const FStVitalityEffects CurrentEffect : _CurrentEffects)
+	FRWScopeLock WriteLock(_EffectsLock, SLT_ReadOnly);
+	for (const FStVitalityEffects& CurrentEffect : _CurrentEffects)
 	{
 		if (CurrentEffect.benefitEffect == BenefitEffect)
 			EffectCopies.Add(CurrentEffect);
@@ -317,11 +319,12 @@ TArray<FStVitalityEffects> UVitalityEffectsComponent::GetAllEffectsByBenefit(
  * @return An array with copies of all active detrimental effects
  */
 TArray<FStVitalityEffects> UVitalityEffectsComponent::GetAllEffectsByDetriment(
-	EEffectsDetrimental DetrimentEffect) const
+	EEffectsDetrimental DetrimentEffect)
 {
 	if (DetrimentEffect == EEffectsDetrimental::NONE) return {};
 	TArray<FStVitalityEffects> EffectCopies;
-	for (const FStVitalityEffects CurrentEffect : _CurrentEffects)
+	FRWScopeLock WriteLock(_EffectsLock, SLT_ReadOnly);
+	for (const FStVitalityEffects& CurrentEffect : _CurrentEffects)
 	{
 		if (CurrentEffect.detrimentEffect == DetrimentEffect)
 			EffectCopies.Add(CurrentEffect);
@@ -397,6 +400,7 @@ void UVitalityEffectsComponent::BeginPlay()
 void UVitalityEffectsComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(UVitalityEffectsComponent, _CurrentEffects, COND_OwnerOnly);
 }
 
 // Runs the tick timer, evaluating each active effect per tick
@@ -496,7 +500,7 @@ int UVitalityEffectsComponent::GenerateUniqueId()
 	while (idExists)
 	{
 		const int randomNumber = FMath::RandRange(1,INT_MAX);
-		for (const FStVitalityEffects vEffect : &_CurrentEffects)
+		for (const FStVitalityEffects& vEffect : _CurrentEffects)
 		{
 			if (vEffect.uniqueId == randomNumber)
 			{
@@ -515,7 +519,7 @@ int UVitalityEffectsComponent::GenerateUniqueId()
  * @param OldArray The effects that were active before the update occurred
  */
 void UVitalityEffectsComponent::OnRep_CurrentEffectsChanged_Implementation(
-	TArray<FStVitalityEffects> OldArray)
+	const TArray<FStVitalityEffects>& OldArray)
 {
 	// Arrays that track effects by Unique ID (KEY) and EffectName (VALUE)
 	TMap<int, FName> AddedBenefitEffects;
@@ -524,7 +528,7 @@ void UVitalityEffectsComponent::OnRep_CurrentEffectsChanged_Implementation(
 	TMap<int, FName> RemovedDetrimentEffects;
 
 	// Add all preexisting entries
-	for (const FStVitalityEffects OldEntry : &OldArray)
+	for (const FStVitalityEffects& OldEntry : OldArray)
 	{
 		if (OldEntry.benefitEffect != EEffectsBeneficial::NONE)
 			RemovedBenefitEffects.Add(OldEntry.uniqueId, OldEntry.properName);
@@ -537,7 +541,7 @@ void UVitalityEffectsComponent::OnRep_CurrentEffectsChanged_Implementation(
 	{
 		// Mutex locks are required on current effects array
 		FRWScopeLock ReadLock(_EffectsLock, SLT_ReadOnly);
-		for (const FStVitalityEffects CurrentEntry : &_CurrentEffects)
+		for (const FStVitalityEffects& CurrentEntry : _CurrentEffects)
 		{
 			if (CurrentEntry.benefitEffect != EEffectsBeneficial::NONE)
 			{
@@ -553,7 +557,7 @@ void UVitalityEffectsComponent::OnRep_CurrentEffectsChanged_Implementation(
 	}
 	
 	// Remove any current effects that existed prior to the update
-	for (const FStVitalityEffects OldEntry : &OldArray)
+	for (const FStVitalityEffects& OldEntry : OldArray)
 	{
 		if (OldEntry.benefitEffect != EEffectsBeneficial::NONE)
 			AddedBenefitEffects.Remove(OldEntry.uniqueId);
@@ -562,16 +566,16 @@ void UVitalityEffectsComponent::OnRep_CurrentEffectsChanged_Implementation(
 	}
 
 	// Trigger Delegates	
-	for (const TPair<int, FName> RemovedEffect : &AddedBenefitEffects)
+	for (const TPair<int, FName>& RemovedEffect : AddedBenefitEffects)
 		OnEffectBeneficialApplied.Broadcast(RemovedEffect.Key, RemovedEffect.Value);
 	
-	for (const TPair<int, FName> RemovedEffect : &AddedDetrimentEffects)
+	for (const TPair<int, FName>& RemovedEffect : AddedDetrimentEffects)
 		OnEffectBeneficialApplied.Broadcast(RemovedEffect.Key, RemovedEffect.Value);
 	
-	for (const TPair<int, FName> RemovedEffect : &RemovedBenefitEffects)
+	for (const TPair<int, FName>& RemovedEffect : RemovedBenefitEffects)
 		OnEffectBeneficialExpired.Broadcast(RemovedEffect.Key, RemovedEffect.Value);
 	
-	for (const TPair<int, FName> RemovedEffect : &RemovedDetrimentEffects)
+	for (const TPair<int, FName>& RemovedEffect : RemovedDetrimentEffects)
 		OnEffectDetrimentalExpired.Broadcast(RemovedEffect.Key, RemovedEffect.Value);
 }
 
