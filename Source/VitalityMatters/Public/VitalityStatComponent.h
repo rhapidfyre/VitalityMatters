@@ -11,6 +11,10 @@
 
 #include "VitalityStatComponent.generated.h"
 
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCoreStatModified,     EVitalityStat, VitalityStat);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageBonusModified,  EDamageType,   DamageEnum);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageResistModified, EDamageType,   DamageEnum);
+
 
 /**
  * Manages all of the Stat-specific members of an actor
@@ -96,18 +100,41 @@ private:
 
 	
 	// Helper function for getting damage resistance
-	float GetDamageResistanceValue(FStVitalityStats& StatsMap,
-		const EDamageType DamageEnum);
+	float GetDamageResistanceValue(const FStVitalityStats& StatsMap,
+		const EDamageType DamageEnum) const;
 	
 	// Helper function for getting damage bonus
-	float GetDamageBonusValue(FStVitalityStats& StatsMap,
-		const EDamageType DamageEnum);
+	float GetDamageBonusValue(const FStVitalityStats& StatsMap,
+		const EDamageType DamageEnum) const;
 	
 	// Helper function for getting core stats
-	float GetCoreStatValue(FStVitalityStats& StatsMap,
-		const EVitalityStat StatEnum);
+	float GetCoreStatValue(const FStVitalityStats& StatsMap,
+		const EVitalityStat StatEnum) const;
+
+	void NaturalCoreStatUpdated(const EVitalityStat CoreStat);
+	void GearCoreStatUpdated(const EVitalityStat CoreStat);
+	void MagicCoreStatUpdated(const EVitalityStat CoreStat);
+	void OtherCoreStatUpdated(const EVitalityStat CoreStat);
 	
+	void NaturalDamageBonusUpdated(const EDamageType DamageEnum);
+	void GearDamageBonusUpdated(const EDamageType DamageEnum);
+	void MagicDamageBonusUpdated(const EDamageType DamageEnum);
+	void OtherDamageBonusUpdated(const EDamageType DamageEnum);
 	
+	void NaturalDamageResistUpdated(const EDamageType DamageEnum);
+	void GearDamageResistUpdated(const EDamageType DamageEnum);
+	void MagicDamageResistUpdated(const EDamageType DamageEnum);
+	void OtherDamageResistUpdated(const EDamageType DamageEnum);
+	
+	void BindListenerEvents();
+	
+public:
+	
+	UPROPERTY(BlueprintAssignable) FOnCoreStatUpdated		OnCoreStatModified;
+	UPROPERTY(BlueprintAssignable) FOnDamageBonusUpdated	OnDamageBonusUpdated;
+	UPROPERTY(BlueprintAssignable) FOnDamageResistUpdated	OnDamageResistUpdated;
+
+private:
 
 	float _CurrentSpeedSprint	= 0.f;
 	float _CurrentSpeedRun		= 0.f;

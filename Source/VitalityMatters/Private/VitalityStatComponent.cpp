@@ -302,9 +302,41 @@ float UVitalityStatComponent::GetOtherCoreStat(EVitalityStat StatEnum)
 	return GetCoreStatValue(_OtherStats, StatEnum);
 }
 
+void UVitalityStatComponent::BindListenerEvents()
+{
+	if (!_BaseStats.OnCoreStatUpdated.IsAlreadyBound(this, &UVitalityStatComponent::NaturalCoreStatUpdated))
+		 _BaseStats.OnCoreStatUpdated.AddDynamic(this, &UVitalityStatComponent::NaturalCoreStatUpdated);
+	if (!_BaseStats.OnDamageBonusUpdated.IsAlreadyBound(this, &UVitalityStatComponent::NaturalDamageBonusUpdated))
+		 _BaseStats.OnDamageBonusUpdated.AddDynamic(this, &UVitalityStatComponent::NaturalDamageBonusUpdated);
+	if (!_BaseStats.OnDamageResistanceUpdated.IsAlreadyBound(this, &UVitalityStatComponent::NaturalDamageResistUpdated))
+		 _BaseStats.OnDamageResistanceUpdated.AddDynamic(this, &UVitalityStatComponent::NaturalDamageResistUpdated);
+	
+	if (!_GearStats.OnCoreStatUpdated.IsAlreadyBound(this, &UVitalityStatComponent::GearCoreStatUpdated))
+		 _GearStats.OnCoreStatUpdated.AddDynamic(this, &UVitalityStatComponent::GearCoreStatUpdated);
+	if (!_GearStats.OnDamageBonusUpdated.IsAlreadyBound(this, &UVitalityStatComponent::GearDamageBonusUpdated))
+		 _GearStats.OnDamageBonusUpdated.AddDynamic(this, &UVitalityStatComponent::GearDamageBonusUpdated);
+	if (!_GearStats.OnDamageResistanceUpdated.IsAlreadyBound(this, &UVitalityStatComponent::GearDamageResistUpdated))
+		 _GearStats.OnDamageResistanceUpdated.AddDynamic(this, &UVitalityStatComponent::GearDamageResistUpdated);
+	
+	if (!_ModifiedStats.OnCoreStatUpdated.IsAlreadyBound(this, &UVitalityStatComponent::MagicCoreStatUpdated))
+		 _ModifiedStats.OnCoreStatUpdated.AddDynamic(this, &UVitalityStatComponent::MagicCoreStatUpdated);
+	if (!_ModifiedStats.OnDamageBonusUpdated.IsAlreadyBound(this, &UVitalityStatComponent::MagicDamageBonusUpdated))
+		 _ModifiedStats.OnDamageBonusUpdated.AddDynamic(this, &UVitalityStatComponent::MagicDamageBonusUpdated);
+	if (!_ModifiedStats.OnDamageResistanceUpdated.IsAlreadyBound(this, &UVitalityStatComponent::MagicDamageResistUpdated))
+		 _ModifiedStats.OnDamageResistanceUpdated.AddDynamic(this, &UVitalityStatComponent::MagicDamageResistUpdated);
+	
+	if (!_OtherStats.OnCoreStatUpdated.IsAlreadyBound(this, &UVitalityStatComponent::OtherCoreStatUpdated))
+		 _OtherStats.OnCoreStatUpdated.AddDynamic(this, &UVitalityStatComponent::OtherCoreStatUpdated);
+	if (!_OtherStats.OnDamageBonusUpdated.IsAlreadyBound(this, &UVitalityStatComponent::OtherDamageBonusUpdated))
+		 _OtherStats.OnDamageBonusUpdated.AddDynamic(this, &UVitalityStatComponent::OtherDamageBonusUpdated);
+	if (!_OtherStats.OnDamageResistanceUpdated.IsAlreadyBound(this, &UVitalityStatComponent::OtherDamageResistUpdated))
+		 _OtherStats.OnDamageResistanceUpdated.AddDynamic(this, &UVitalityStatComponent::OtherDamageResistUpdated);
+
+}
+
 void UVitalityStatComponent::ReloadSettings()
 {
-	
+	BindListenerEvents();
 }
 
 void UVitalityStatComponent::BeginPlay()
@@ -396,16 +428,7 @@ FStVitalityStatMap* UVitalityStatComponent::FindCoreStatsMap(
 bool UVitalityStatComponent::SetNewDamageResistanceValue(
 	FStVitalityStats& StatsMap, const EDamageType DamageEnum, const int NewValue)
 {
-	const float OldValue = GetDamageResistanceValue(StatsMap, DamageEnum);
-	FStVitalityDamageMap* DamageMap = FindDamageResistanceMap(StatsMap, DamageEnum);
-	if (DamageMap != nullptr)
-	{
-		DamageMap->MapValue = NewValue;
-		StatsMap.OnDamageResistanceUpdated.Broadcast(DamageEnum, OldValue, NewValue);
-		return true;
-	}
-	StatsMap.DamageResistances.Add(FStVitalityDamageMap(DamageEnum, NewValue));
-	StatsMap.OnDamageResistanceUpdated.Broadcast(DamageEnum, OldValue, NewValue);
+	StatsMap.SetDamageResistance(DamageEnum, NewValue);
 	return true;
 }
 
@@ -419,16 +442,7 @@ bool UVitalityStatComponent::SetNewDamageResistanceValue(
 bool UVitalityStatComponent::SetNewDamageBonusValue(
 	FStVitalityStats& StatsMap, const EDamageType DamageEnum, const int NewValue)
 {
-	const float OldValue = GetDamageBonusValue(StatsMap, DamageEnum);
-	FStVitalityDamageMap* DamageMap = FindDamageBonusMap(StatsMap, DamageEnum);
-	if (DamageMap != nullptr)
-	{
-		DamageMap->MapValue = NewValue;
-		StatsMap.OnDamageBonusUpdated.Broadcast(DamageEnum, OldValue, NewValue);
-		return true;
-	}
-	StatsMap.DamageBonuses.Add(FStVitalityDamageMap(DamageEnum, NewValue));
-	StatsMap.OnDamageBonusUpdated.Broadcast(DamageEnum, OldValue, NewValue);
+	StatsMap.SetDamageBonus(DamageEnum, NewValue);
 	return true;
 }
 
@@ -443,16 +457,7 @@ bool UVitalityStatComponent::SetNewDamageBonusValue(
 bool UVitalityStatComponent::SetNewCoreStatsValue(FStVitalityStats& StatsMap,
 	const EVitalityStat StatEnum, const int NewValue)
 {
-	const float OldValue = GetCoreStatValue(StatsMap, StatEnum);
-	FStVitalityStatMap* DamageMap = FindCoreStatsMap(StatsMap, StatEnum);
-	if (DamageMap != nullptr)
-	{
-		DamageMap->MapValue = NewValue;
-		StatsMap.OnCoreStatUpdated.Broadcast(StatEnum, OldValue, NewValue);
-		return true;
-	}
-	StatsMap.CoreStats.Add(FStVitalityStatMap(StatEnum, NewValue));
-	StatsMap.OnCoreStatUpdated.Broadcast(StatEnum, OldValue, NewValue);
+	StatsMap.SetCoreStat(StatEnum, NewValue);
 	return true;
 }
 
@@ -463,12 +468,9 @@ bool UVitalityStatComponent::SetNewCoreStatsValue(FStVitalityStats& StatsMap,
  * @return The value of the enum. Returns zero if unused or unset.
  */
 float UVitalityStatComponent::GetDamageResistanceValue(
-	FStVitalityStats& StatsMap, const EDamageType DamageEnum)
+	const FStVitalityStats& StatsMap, const EDamageType DamageEnum) const
 {
-	const FStVitalityDamageMap* DamageMap = FindDamageResistanceMap(StatsMap, DamageEnum);
-	if (DamageMap != nullptr)
-		return DamageMap->MapValue;
-	return 0.f;
+	return StatsMap.GetDamageResistValue(DamageEnum);
 }
 
 /**
@@ -478,12 +480,9 @@ float UVitalityStatComponent::GetDamageResistanceValue(
  * @return The value of the enum. Returns zero if unused or unset.
  */
 float UVitalityStatComponent::GetDamageBonusValue(
-	FStVitalityStats& StatsMap, const EDamageType DamageEnum)
+	const FStVitalityStats& StatsMap, const EDamageType DamageEnum) const
 {
-	const FStVitalityDamageMap* DamageMap = FindDamageBonusMap(StatsMap, DamageEnum);
-	if (DamageMap != nullptr)
-		return DamageMap->MapValue;
-	return 0.f;
+	return StatsMap.GetDamageBonusValue(DamageEnum);
 }
 
 /**
@@ -493,10 +492,67 @@ float UVitalityStatComponent::GetDamageBonusValue(
  * @return The value of the enum. Returns zero if unused or unset.
  */
 float UVitalityStatComponent::GetCoreStatValue(
-	FStVitalityStats& StatsMap, const EVitalityStat StatEnum)
+	const FStVitalityStats& StatsMap, const EVitalityStat StatEnum) const
 {
-	const FStVitalityStatMap* DamageMap = FindCoreStatsMap(StatsMap, StatEnum);
-	if (DamageMap != nullptr)
-		return DamageMap->MapValue;
-	return 0.f;
+	return StatsMap.GetCoreStatValue(StatEnum);
+}
+
+void UVitalityStatComponent::NaturalCoreStatUpdated(const EVitalityStat CoreStat)
+{
+	OnCoreStatModified.Broadcast(CoreStat);
+}
+
+void UVitalityStatComponent::GearCoreStatUpdated(const EVitalityStat CoreStat)
+{
+	OnCoreStatModified.Broadcast(CoreStat);
+}
+
+void UVitalityStatComponent::MagicCoreStatUpdated(const EVitalityStat CoreStat)
+{
+	OnCoreStatModified.Broadcast(CoreStat);
+}
+
+void UVitalityStatComponent::OtherCoreStatUpdated(const EVitalityStat CoreStat)
+{
+	OnCoreStatModified.Broadcast(CoreStat);
+}
+
+void UVitalityStatComponent::NaturalDamageBonusUpdated(const EDamageType DamageEnum)
+{
+	OnDamageBonusUpdated.Broadcast(DamageEnum);
+}
+
+void UVitalityStatComponent::GearDamageBonusUpdated(const EDamageType DamageEnum)
+{
+	OnDamageBonusUpdated.Broadcast(DamageEnum);
+}
+
+void UVitalityStatComponent::MagicDamageBonusUpdated(const EDamageType DamageEnum)
+{
+	OnDamageBonusUpdated.Broadcast(DamageEnum);
+}
+
+void UVitalityStatComponent::OtherDamageBonusUpdated(const EDamageType DamageEnum)
+{
+	OnDamageBonusUpdated.Broadcast(DamageEnum);
+}
+
+void UVitalityStatComponent::NaturalDamageResistUpdated(const EDamageType DamageEnum)
+{
+	OnDamageResistUpdated.Broadcast(DamageEnum);
+}
+
+void UVitalityStatComponent::GearDamageResistUpdated(const EDamageType DamageEnum)
+{
+	OnDamageResistUpdated.Broadcast(DamageEnum);
+}
+
+void UVitalityStatComponent::MagicDamageResistUpdated(const EDamageType DamageEnum)
+{
+	OnDamageResistUpdated.Broadcast(DamageEnum);
+}
+
+void UVitalityStatComponent::OtherDamageResistUpdated(const EDamageType DamageEnum)
+{
+	OnDamageResistUpdated.Broadcast(DamageEnum);
 }

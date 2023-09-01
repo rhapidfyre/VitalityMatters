@@ -9,14 +9,14 @@
 
 #include "VitalityData.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnCoreStatUpdated,
-	EVitalityStat, CoreStat, float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCoreStatUpdated,
+	const EVitalityStat,	CoreStat);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnDamageBonusUpdated,
-	EDamageType, DamageEnum, float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageBonusUpdated,
+	const EDamageType,		DamageEnum);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnDamageResistanceUpdated,
-	EDamageType, DamageEnum, float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageResistUpdated,
+	const EDamageType,		DamageEnum);
 
 
 USTRUCT(BlueprintType)
@@ -69,13 +69,24 @@ struct FStVitalityStats
 {
 	GENERATED_BODY()
 	
+	FStVitalityStats() {}
+	~FStVitalityStats() {}
+	
+	void SetCoreStat(const EVitalityStat StatEnum, const int NewValue);
+	void SetDamageBonus(const EDamageType DamageEnum, const int NewValue);
+	void SetDamageResistance(const EDamageType DamageEnum, const int NewValue);
+
+	float GetCoreStatValue(const EVitalityStat StatEnum) const;
+	float GetDamageBonusValue(const EDamageType DamageEnum) const;
+	float GetDamageResistValue(const EDamageType DamageEnum) const;
+	
+	UPROPERTY(BlueprintAssignable) FOnCoreStatUpdated		OnCoreStatUpdated;
+	UPROPERTY(BlueprintAssignable) FOnDamageBonusUpdated	OnDamageBonusUpdated;
+	UPROPERTY(BlueprintAssignable) FOnDamageResistUpdated	OnDamageResistanceUpdated;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStVitalityStatMap> CoreStats;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStVitalityDamageMap> DamageBonuses;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStVitalityDamageMap> DamageResistances;
-
-	UPROPERTY(BlueprintAssignable) FOnCoreStatUpdated			OnCoreStatUpdated;
-	UPROPERTY(BlueprintAssignable) FOnDamageBonusUpdated		OnDamageBonusUpdated;
-	UPROPERTY(BlueprintAssignable) FOnDamageResistanceUpdated	OnDamageResistanceUpdated;
 	
 };
 
