@@ -30,6 +30,8 @@ class VITALITYMATTERS_API UVitalityEffectsComponent : public UActorComponent
 public:
 
 	UVitalityEffectsComponent();
+
+	void ReloadSettings(TArray<FStVitalityEffects> SavedEffects);
 	
 	UFUNCTION(BlueprintCallable) bool ApplyEffect(FName EffectName, int StackCount = 1);
 	UFUNCTION(BlueprintCallable) bool ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);

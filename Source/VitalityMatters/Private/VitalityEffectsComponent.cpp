@@ -10,6 +10,13 @@ UVitalityEffectsComponent::UVitalityEffectsComponent()
 {
 }
 
+void UVitalityEffectsComponent::ReloadSettings(TArray<FStVitalityEffects> SavedEffects)
+{
+	FRWScopeLock ReadLock(_EffectsLock, SLT_Write);
+	_CurrentEffects.Empty();
+	_CurrentEffects = SavedEffects;
+}
+
 
 /** Adds the requested effect by data table name.
  * @param EffectName The table row name to apply.

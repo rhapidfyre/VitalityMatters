@@ -63,6 +63,11 @@ public:
 	UFUNCTION(BlueprintPure) float GetOtherCoreStat(EVitalityStat StatEnum);
 
 	UFUNCTION(BlueprintCallable) void ReloadSettings();
+
+	UFUNCTION(BlueprintPure) FStVitalityStats GetAllNaturalStats() const	{ return _BaseStats; }
+	UFUNCTION(BlueprintPure) FStVitalityStats GetAllGearStats() const		{ return _GearStats; }
+	UFUNCTION(BlueprintPure) FStVitalityStats GetAllModifiedStats() const	{ return _ModifiedStats; }
+	UFUNCTION(BlueprintPure) FStVitalityStats GetAllOtherStats() const		{ return _OtherStats; }
 	
 protected:
 
