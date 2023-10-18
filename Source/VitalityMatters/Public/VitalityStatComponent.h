@@ -116,20 +116,20 @@ private:
 	float GetCoreStatValue(const FStVitalityStats& StatsMap,
 		const EVitalityStat StatEnum) const;
 
-	void NaturalCoreStatUpdated(const EVitalityStat CoreStat);
-	void GearCoreStatUpdated(const EVitalityStat CoreStat);
-	void MagicCoreStatUpdated(const EVitalityStat CoreStat);
-	void OtherCoreStatUpdated(const EVitalityStat CoreStat);
+	UFUNCTION() void NaturalCoreStatUpdated(const EVitalityStat CoreStat);
+	UFUNCTION() void GearCoreStatUpdated(const EVitalityStat CoreStat);
+	UFUNCTION() void MagicCoreStatUpdated(const EVitalityStat CoreStat);
+	UFUNCTION() void OtherCoreStatUpdated(const EVitalityStat CoreStat);
 	
-	void NaturalDamageBonusUpdated(const EDamageType DamageEnum);
-	void GearDamageBonusUpdated(const EDamageType DamageEnum);
-	void MagicDamageBonusUpdated(const EDamageType DamageEnum);
-	void OtherDamageBonusUpdated(const EDamageType DamageEnum);
+	UFUNCTION() void NaturalDamageBonusUpdated(const EDamageType DamageEnum);
+	UFUNCTION() void GearDamageBonusUpdated(const EDamageType DamageEnum);
+	UFUNCTION() void MagicDamageBonusUpdated(const EDamageType DamageEnum);
+	UFUNCTION() void OtherDamageBonusUpdated(const EDamageType DamageEnum);
 	
-	void NaturalDamageResistUpdated(const EDamageType DamageEnum);
-	void GearDamageResistUpdated(const EDamageType DamageEnum);
-	void MagicDamageResistUpdated(const EDamageType DamageEnum);
-	void OtherDamageResistUpdated(const EDamageType DamageEnum);
+	UFUNCTION() void NaturalDamageResistUpdated(const EDamageType DamageEnum);
+	UFUNCTION() void GearDamageResistUpdated(const EDamageType DamageEnum);
+	UFUNCTION() void MagicDamageResistUpdated(const EDamageType DamageEnum);
+	UFUNCTION() void OtherDamageResistUpdated(const EDamageType DamageEnum);
 	
 	void BindListenerEvents();
 	
