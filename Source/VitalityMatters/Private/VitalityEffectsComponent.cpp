@@ -8,6 +8,7 @@
 
 UVitalityEffectsComponent::UVitalityEffectsComponent()
 {
+	SetIsReplicatedByDefault(true);
 }
 
 void UVitalityEffectsComponent::ReloadSettings(TArray<FStVitalityEffects> SavedEffects)
