@@ -147,6 +147,9 @@ void UVitalityWelfareComponent::ReloadSettings()
  */
 float UVitalityWelfareComponent::DamageHealth(AActor* DamageInstigator, float DamageTaken)
 {
+	if (!GetOwner()->HasAuthority())
+		return _HealthCurrent;
+	
 	const float NewDamageValue = abs(DamageTaken);
 	if (!FMath::IsNearlyZero(NewDamageValue))
 	{
@@ -169,8 +172,7 @@ float UVitalityWelfareComponent::DamageHealth(AActor* DamageInstigator, float Da
 				_DamageHistory.Add(FStDamageData(DamageInstigator, NewDamageValue));
 
 			_HealthCurrent -= NewDamageValue;
-			OnDamageTaken.Broadcast(DamageInstigator, NewDamageValue);
-			Multicast_DamageTaken_Implementation(DamageInstigator, NewDamageValue);
+			Multicast_DamageTaken(DamageInstigator, NewDamageValue);
 			
 			if (_HealthCurrent <= 0.f && !GetIsDead())
 			{
@@ -191,15 +193,17 @@ float UVitalityWelfareComponent::DamageHealth(AActor* DamageInstigator, float Da
  */
 float UVitalityWelfareComponent::DamageStamina(AActor* DamageInstigator, float DamageTaken)
 {
+	if (!GetOwner()->HasAuthority())
+		return _StaminaCurrent;
 	const float NewDamageValue = abs(DamageTaken);
 	if (_StaminaMax > 0.f)
 	{
 		_StaminaCurrent -= NewDamageValue;
-		if (_HealthCurrent <= 0.f && !GetIsDead())
-			_IsDead = true;
+		if (_StaminaCurrent < 0.f)
+			_StaminaCurrent = 0.f;
 		OnStaminaUpdated.Broadcast(_StaminaCurrent, _StaminaMax, GetStaminaPercent());
 	}
-	return 0.f;
+	return _StaminaCurrent;
 }
 
 /**
@@ -210,15 +214,17 @@ float UVitalityWelfareComponent::DamageStamina(AActor* DamageInstigator, float D
  */
 float UVitalityWelfareComponent::DamageMagic(AActor* DamageInstigator, float DamageTaken)
 {
+	if (!GetOwner()->HasAuthority())
+		return _MagicCurrent;
 	const float NewDamageValue = abs(DamageTaken);
 	if (_MagicMax > 0.f)
 	{
 		_MagicCurrent -= NewDamageValue;
-		if (_MagicCurrent <= 0.f && !GetIsDead())
-			_IsDead = true;
+		if (_MagicCurrent < 0.f)
+			_MagicCurrent = 0.f;
 		OnMagicUpdated.Broadcast(_MagicCurrent, _MagicMax, GetMagicPercent());
 	}
-	return 0.f;
+	return _MagicCurrent;
 }
 
 bool UVitalityWelfareComponent::StartTimerForCategory(EVitalityCategory VitalityCategory)

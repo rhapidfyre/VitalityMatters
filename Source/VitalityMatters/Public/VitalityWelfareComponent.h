@@ -56,7 +56,7 @@ class VITALITYMATTERS_API UVitalityWelfareComponent : public UActorComponent
 	
 public:
 	
-	UVitalityWelfareComponent() {};
+	UVitalityWelfareComponent() { SetIsReplicatedByDefault(true); };
 
 	/* Utility & Helper Functions */
 	
@@ -198,6 +198,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events")
 	FOnCombatStateChanged	OnCombatStateChanged;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<UAnimMontage*> DeathAnimations;
+	
 	// If FALSE, the welfare component will NOT have health-related functionality
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Settings")
 	bool UseHealthSubsystem = true;
