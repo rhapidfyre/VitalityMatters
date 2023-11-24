@@ -31,7 +31,8 @@ public:
 
 	UVitalityEffectsComponent();
 
-	void ReloadSettings(TArray<FStVitalityEffects> SavedEffects);
+	void InitializeEffects(const TArray<FStVitalityEffects>& SavedEffects);
+	UFUNCTION(Server, Reliable) void Server_InitializeEffects(const TArray<FStVitalityEffects>& SavedEffects);
 	
 	UFUNCTION(BlueprintCallable) bool ApplyEffect(FName EffectName, int StackCount = 1);
 	UFUNCTION(BlueprintCallable) bool ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount = 1);
@@ -94,6 +95,8 @@ public:
 	FOnEffectBeneficialExpired OnEffectBeneficialExpired;
 	
 private:
+
+	bool bHasInitialized = false;
 
 	// Write Lock: Stops all writing AND reading
 	// Read Lock:  Stops all writing, allows any number of reads

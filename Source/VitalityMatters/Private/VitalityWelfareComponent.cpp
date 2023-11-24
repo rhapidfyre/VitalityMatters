@@ -2,142 +2,9 @@
 
 #include "VitalityWelfareComponent.h"
 
+#include "AsyncTreeDifferences.h"
 #include "Net/UnrealNetwork.h"
 
-
-/**
- * @brief Call whenever save games are loaded
- */
-void UVitalityWelfareComponent::ReloadSettings()
-{
-	if (_HealthTimer.IsValid())		_HealthTimer.Invalidate();
-	if (_MagicTimer.IsValid())		_MagicTimer.Invalidate();
-	if (_StaminaTimer.IsValid())	_StaminaTimer.Invalidate();
-	if (_CaloriesTimer.IsValid())	_CaloriesTimer.Invalidate();
-	if (_HydrationTimer.IsValid())	_HydrationTimer.Invalidate();
-	if (_CombatTimer.IsValid())		_CombatTimer.Invalidate();
-	
-	if (UseHealthSubsystem)
-	{
-		const bool MaximumValueIsValid	= StartingHealthMaximum	> 0.f;
-		const bool CurrentValueIsValid	= StartingHealthCurrent	> 0.f;
-		const bool RegenValueIsValid	= PassiveHealthRegen	> 0.f;
-		const bool TimerTickRateIsValid	= HealthTimerTickRate	> 0.f;
-		_HealthMax				= MaximumValueIsValid	? StartingHealthMaximum	: 1.f;
-		_HealthCurrent			= CurrentValueIsValid	? StartingHealthCurrent	: 1.f;
-		_HealthRegenAtRest		= RegenValueIsValid		? PassiveHealthRegen	: 1.f;
-		_HealthTimerTickRate	= TimerTickRateIsValid	? HealthTimerTickRate	: 0.5;
-		
-		if (_HealthCurrent < _HealthMax)
-		{
-			FTimerDelegate InitDelegate;
-			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickHealth);
-			InitializeTimer(_HealthTimer, InitDelegate);
-			if (_HealthCurrent <= 0.f && !GetIsDead())
-			{
-				_IsDead = true;
-				OnDeath.Broadcast(nullptr);
-			}
-		}
-		
-	}
-	else
-	{
-		_HealthMax = 0.f;
-		_HealthCurrent = 0.f;
-		_HealthRegenAtRest = 0.f;
-		_HealthTimerTickRate = 0.5;
-	}
-	
-	if (UseStaminaSubsystem)
-	{
-		const bool MaximumValueIsValid	= StartingStaminaMaximum	> 0.f;
-		const bool CurrentValueIsValid	= StartingStaminaCurrent	> 0.f;
-		const bool RegenValueIsValid	= PassiveStaminaRegen		> 0.f;
-		const bool TimerTickRateIsValid	= StaminaTimerTickRate		> 0.f;
-		_StaminaMax				= MaximumValueIsValid	? StartingStaminaMaximum	: 1.f;
-		_StaminaCurrent			= CurrentValueIsValid	? StartingStaminaCurrent	: 1.f;
-		_StaminaRegenAtRest		= RegenValueIsValid		? PassiveStaminaRegen		: 1.f;
-		_StaminaTimerTickRate	= TimerTickRateIsValid	? StaminaTimerTickRate		: 0.5;
-		
-		if (_StaminaCurrent < _StaminaMax)
-		{
-			FTimerDelegate InitDelegate;
-			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickStamina);
-			InitializeTimer(_StaminaTimer, InitDelegate);
-		}
-		
-	}
-	else
-	{
-		_StaminaMax = 0.f;
-		_StaminaCurrent = 0.f;
-		_StaminaRegenAtRest = 0.f;
-		_StaminaTimerTickRate = 0.5;
-	}
-	
-	if (UseMagicSubsystem)
-	{
-		const bool MaximumValueIsValid	= StartingMagicMaximum	> 0.f;
-		const bool CurrentValueIsValid	= StartingMagicCurrent	> 0.f;
-		const bool RegenValueIsValid	= PassiveMagicRegen		> 0.f;
-		const bool TimerTickRateIsValid	= MagicTimerTickRate	> 0.f;
-		_MagicMax			= MaximumValueIsValid	? StartingMagicMaximum	: 1.f;
-		_MagicCurrent		= CurrentValueIsValid	? StartingMagicCurrent	: 1.f;
-		_MagicRegenAtRest	= RegenValueIsValid		? PassiveMagicRegen		: 1.f;
-		_MagicTimerTickRate	= TimerTickRateIsValid	? MagicTimerTickRate	: 0.5;
-		
-		if (_MagicCurrent < _MagicMax)
-		{
-			FTimerDelegate InitDelegate;
-			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickMagic);
-			InitializeTimer(_MagicTimer, InitDelegate);
-		}
-		
-	}
-	else
-	{
-		_StaminaMax = 0.f;
-		_StaminaCurrent = 0.f;
-		_StaminaRegenAtRest = 0.f;
-		_StaminaTimerTickRate = 0.5;
-	}
-	
-	if (UseSurvivalSubsystem)
-	{
-		_HydrationMax			= StartingMagicMaximum		> 0.f	? StartingMagicMaximum		: 1.f;
-		_HydrationCurrent		= StartingMagicCurrent		> 0.f	? StartingMagicCurrent		: 1.f;
-		_HydrationDrainAtRest	= PassiveHydrationDrain		> 0.f	? PassiveHydrationDrain		: 0.082;
-		_HydrationTimerTickRate	= HydrationTimerTickRate	> 0.f	? HydrationTimerTickRate	: 0.5;
-
-		if (_HydrationCurrent < _HydrationMax)
-		{
-			FTimerDelegate InitDelegate;
-			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickMagic);
-			InitializeTimer(_HydrationTimer, InitDelegate);
-		}
-		
-		_CaloriesMax			= StartingHungerMaximum	> 0.f	? StartingHungerMaximum	: 1.f;
-		_CaloriesCurrent		= StartingHungerCurrent	> 0.f	? StartingHungerCurrent	: 1.f;
-		_CaloriesDrainAtRest	= PassiveHungerDrain	> 0.f	? PassiveHungerDrain	: 0.082;
-		_HungerTimerTickRate	= CaloriesTimerTickRate	> 0.f	? CaloriesTimerTickRate	: 0.5;
-
-		if (_CaloriesCurrent < _CaloriesMax)
-		{
-			FTimerDelegate InitDelegate;
-			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickMagic);
-			InitializeTimer(_CaloriesTimer, InitDelegate);
-		}
-		
-	}
-	else
-	{
-		_HydrationMax			= 0.f;	_CaloriesMax			= 0.f;
-		_HydrationCurrent		= 0.f;	_CaloriesCurrent		= 0.f;
-		_HydrationDrainAtRest	= 0.f;	_CaloriesDrainAtRest	= 0.f;
-		_HydrationTimerTickRate	= 0.5;	_HungerTimerTickRate	= 0.5;
-	}
-}
 
 /**
  * @brief Damages the components health value, performing internal logic and firing delegates.
@@ -488,10 +355,195 @@ void UVitalityWelfareComponent::SetCombatAlert()
 	SetCombatState(ECombatState::ENGAGED);
 }
 
+void UVitalityWelfareComponent::InitializeHealthSubsystem(bool UseSubsystem, float NowValue, float MaxValue,
+	float RegenRate)
+{
+	Server_InitializeHealthSubsystem(UseSubsystem, NowValue, MaxValue, RegenRate);
+}
+
+void UVitalityWelfareComponent::InitializeStaminaSubsystem(bool UseSubsystem, float NowValue, float MaxValue,
+	float RegenRate)
+{
+	Server_InitializeStaminaSubsystem(UseSubsystem, NowValue, MaxValue, RegenRate);
+}
+
+void UVitalityWelfareComponent::InitializeMagicSubsystem(bool UseSubsystem, float NowValue, float MaxValue,
+	float RegenRate)
+{
+	Server_InitializeMagicSubsystem(UseSubsystem, NowValue, MaxValue, RegenRate);
+}
+
+void UVitalityWelfareComponent::InitializeSurvivalSubsystem(bool UseSubsystem, float NowHydrationValue,
+	float MaxHydrationValue, float HydrationRegenRate, float NowCaloriesValue, float MaxCaloriesValue,
+	float CaloriesRegenRate)
+{
+	if (!GetOwner()->HasAuthority())
+	{
+		Server_InitializeSurvivalSubsystem(UseSubsystem,
+			NowHydrationValue, MaxHydrationValue, HydrationRegenRate,
+			NowCaloriesValue, NowCaloriesValue, CaloriesRegenRate);
+	}
+}
+
+void UVitalityWelfareComponent::InitializeSubsystem(EVitalityCategory VitalityCategory,
+	bool UseSubsystem, float NowValue, float MaxValue, float RegenRate)
+{
+	if (GetOwner()->HasAuthority())
+	{
+		bool* UseSubsystemPtr  			= &UseHealthSubsystem;
+		float* ActualCurrentPtr			= &_HealthCurrent;
+		float* CurrentValuePtr 			= &StartingHealthCurrent;
+		float* ActualMaximumPtr			= &_HealthMax;
+		float* MaximumValuePtr 			= &StartingHealthMaximum;
+		float* ActualRegenPtr			= &_HealthRegenAtRest;
+		float* RegenValuePtr   			= &PassiveHealthRegen;
+		float* ActualTickRatePtr		= &_HealthTimerTickRate;
+		float* TimerTickRatePtr			= &HealthTimerTickRate;
+		FTimerHandle* SubsystemTimer	= &_HealthTimer;
+		FTimerDelegate InitDelegate;
+
+		switch(VitalityCategory)
+		{
+		case EVitalityCategory::HEALTH:
+			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickHealth);
+			break;
+		case EVitalityCategory::STAMINA:
+			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickStamina);
+			UseSubsystemPtr		= &UseStaminaSubsystem;
+			ActualCurrentPtr	= &_StaminaCurrent;
+			CurrentValuePtr		= &StartingStaminaCurrent;
+			ActualMaximumPtr	= &_StaminaMax;
+			MaximumValuePtr		= &StartingStaminaMaximum;
+			ActualRegenPtr		= &_StaminaRegenAtRest;
+			RegenValuePtr		= &PassiveStaminaRegen;
+			ActualTickRatePtr	= &_HealthTimerTickRate;
+			TimerTickRatePtr	= &StaminaTimerTickRate;
+			SubsystemTimer		= &_StaminaTimer;
+			break;
+		case EVitalityCategory::MAGIC:
+			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickMagic);
+			UseSubsystemPtr		= &UseMagicSubsystem;
+			ActualCurrentPtr	= &_MagicCurrent;
+			CurrentValuePtr		= &StartingMagicCurrent;
+			ActualMaximumPtr	= &_MagicMax;
+			MaximumValuePtr		= &StartingMagicMaximum;
+			ActualRegenPtr		= &_MagicRegenAtRest;
+			RegenValuePtr		= &PassiveMagicRegen;
+			ActualTickRatePtr	= &_MagicTimerTickRate;
+			TimerTickRatePtr	= &MagicTimerTickRate;
+			SubsystemTimer		= &_MagicTimer;
+			break;
+		default:
+			return;
+		}
+		
+		// Set initial values
+		if (UseSubsystemPtr != nullptr) *UseSubsystemPtr	= UseSubsystem;
+		if (CurrentValuePtr != nullptr) *CurrentValuePtr	= NowValue;
+		if (MaximumValuePtr != nullptr) *MaximumValuePtr	= MaxValue;
+		if (RegenValuePtr != nullptr)	*RegenValuePtr		= RegenRate;
+		
+		if (SubsystemTimer->IsValid())
+			SubsystemTimer->Invalidate();
+		
+		if (*UseSubsystemPtr)
+		{
+			const bool CurrentValueIsValid	= *CurrentValuePtr  > 0.f;
+			const bool MaximumValueIsValid	= *MaximumValuePtr  > 0.f; 
+			const bool RegenValueIsValid	= *RegenValuePtr	> 0.f;
+			const bool TimerTickRateIsValid	= *TimerTickRatePtr	> 0.f;
+			
+			*ActualCurrentPtr	= CurrentValueIsValid	? *CurrentValuePtr	: 1.f;
+			*ActualMaximumPtr	= MaximumValueIsValid	? *MaximumValuePtr	: 1.f;
+			*ActualRegenPtr		= RegenValueIsValid		? *ActualRegenPtr	: 1.f;
+			*ActualTickRatePtr	= TimerTickRateIsValid	? *TimerTickRatePtr	: 0.5;
+
+			// If the value isn't max, start the regen timer
+			if (*ActualCurrentPtr < *ActualMaximumPtr)
+			{
+				InitializeTimer(*SubsystemTimer, InitDelegate);
+				if (VitalityCategory == EVitalityCategory::HEALTH)
+				{
+					if (_HealthCurrent <= 0.f && !GetIsDead())
+					{
+						_IsDead = true;
+						OnDeath.Broadcast(nullptr);
+					}
+				}
+			}
+		}
+		else
+		{
+			*ActualCurrentPtr	= 0.f;
+			*ActualMaximumPtr	= 0.f;
+			*ActualRegenPtr		= 0.f;
+			*ActualTickRatePtr	= 0.5;
+		}
+	}
+}
+
+
+void UVitalityWelfareComponent::Server_InitializeHealthSubsystem_Implementation(bool UseSubsystem, float NowValue,
+																				float MaxValue, float RegenRate)
+{
+	InitializeSubsystem(EVitalityCategory::HEALTH, UseSubsystem, NowValue, MaxValue, RegenRate);
+}
+
+void UVitalityWelfareComponent::Server_InitializeStaminaSubsystem_Implementation(bool UseSubsystem, float NowValue,
+                                                                                 float MaxValue, float RegenRate)
+{
+	InitializeSubsystem(EVitalityCategory::STAMINA, UseSubsystem, NowValue, MaxValue, RegenRate);
+}
+
+void UVitalityWelfareComponent::Server_InitializeMagicSubsystem_Implementation(bool UseSubsystem, float NowValue,
+	float MaxValue, float RegenRate)
+{
+	InitializeSubsystem(EVitalityCategory::MAGIC, UseSubsystem, NowValue, MaxValue, RegenRate);
+}
+
+void UVitalityWelfareComponent::Server_InitializeSurvivalSubsystem_Implementation(bool UseSubsystem,
+	float NowHydrationValue, float MaxHydrationValue, float HydrationRegenRate, float NowCaloriesValue,
+	float MaxCaloriesValue, float CaloriesRegenRate)
+{
+	if (UseSubsystem)
+	{
+		_HydrationMax			= StartingMagicMaximum		> 0.f	? StartingMagicMaximum		: 1.f;
+		_HydrationCurrent		= StartingMagicCurrent		> 0.f	? StartingMagicCurrent		: 1.f;
+		_HydrationDrainAtRest	= PassiveHydrationDrain		> 0.f	? PassiveHydrationDrain		: 0.082;
+		_HydrationTimerTickRate	= HydrationTimerTickRate	> 0.f	? HydrationTimerTickRate	: 0.5;
+
+		if (_HydrationCurrent > 0.f)
+		{
+			FTimerDelegate InitDelegate;
+			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickHydration);
+			InitializeTimer(_HydrationTimer, InitDelegate);
+		}
+		
+		_CaloriesMax			= StartingHungerMaximum	> 0.f	? StartingHungerMaximum	: 1.f;
+		_CaloriesCurrent		= StartingHungerCurrent	> 0.f	? StartingHungerCurrent	: 1.f;
+		_CaloriesDrainAtRest	= PassiveHungerDrain	> 0.f	? PassiveHungerDrain	: 0.082;
+		_HungerTimerTickRate	= CaloriesTimerTickRate	> 0.f	? CaloriesTimerTickRate	: 0.5;
+
+		if (_CaloriesCurrent > 0.f)
+		{
+			FTimerDelegate InitDelegate;
+			InitDelegate.BindUObject(this, &UVitalityWelfareComponent::TickCalories);
+			InitializeTimer(_CaloriesTimer, InitDelegate);
+		}
+		
+	}
+	else
+	{
+		_HydrationMax			= 0.f;	_CaloriesMax			= 0.f;
+		_HydrationCurrent		= 0.f;	_CaloriesCurrent		= 0.f;
+		_HydrationDrainAtRest	= 0.f;	_CaloriesDrainAtRest	= 0.f;
+		_HydrationTimerTickRate	= 0.5;	_HungerTimerTickRate	= 0.5;
+	}
+}
+
 void UVitalityWelfareComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	ReloadSettings();
 }
 
 void UVitalityWelfareComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

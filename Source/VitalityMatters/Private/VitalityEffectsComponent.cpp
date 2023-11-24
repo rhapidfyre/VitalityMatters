@@ -11,11 +11,20 @@ UVitalityEffectsComponent::UVitalityEffectsComponent()
 	SetIsReplicatedByDefault(true);
 }
 
-void UVitalityEffectsComponent::ReloadSettings(TArray<FStVitalityEffects> SavedEffects)
+void UVitalityEffectsComponent::InitializeEffects(const TArray<FStVitalityEffects>& SavedEffects)
 {
-	FRWScopeLock ReadLock(_EffectsLock, SLT_Write);
-	_CurrentEffects.Empty();
-	_CurrentEffects = SavedEffects;
+	Server_InitializeEffects(SavedEffects);
+}
+
+void UVitalityEffectsComponent::Server_InitializeEffects_Implementation(const TArray<FStVitalityEffects>& SavedEffects)
+{
+	if (GetOwner()->HasAuthority() && !bHasInitialized)
+	{
+		bHasInitialized = true;
+		FRWScopeLock ReadLock(_EffectsLock, SLT_Write);
+		_CurrentEffects.Empty();
+		_CurrentEffects = SavedEffects;
+	}
 }
 
 

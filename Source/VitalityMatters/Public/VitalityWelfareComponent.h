@@ -13,6 +13,8 @@
 
 class UVitalityEffectsComponent;
 class UVitalityStatComponent;
+
+
 // Called when the combat state has changed
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnCombatStateChanged,	ECombatState, OldCombatState, ECombatState, NewState);
@@ -60,8 +62,6 @@ public:
 
 	/* Utility & Helper Functions */
 	
-	UFUNCTION(BlueprintCallable) void ReloadSettings();
-	
 	UFUNCTION(BlueprintCallable) float DamageHealth(AActor* DamageInstigator = nullptr, float DamageTaken = 0.f);
 	UFUNCTION(BlueprintCallable) float DamageStamina(AActor* DamageInstigator = nullptr, float DamageTaken = 0.f);
 	UFUNCTION(BlueprintCallable) float DamageMagic(AActor* DamageInstigator = nullptr, float DamageTaken = 0.f);
@@ -104,6 +104,24 @@ public:
 	UFUNCTION(BlueprintCallable) void SetCombatEngaged();
 	UFUNCTION(BlueprintCallable) void SetCombatAlert();
 
+	void InitializeHealthSubsystem(bool UseSubsystem = false, float NowValue = 0.f, float MaxValue = 0.f, float RegenRate = 0.f);
+	void InitializeStaminaSubsystem(bool UseSubsystem = false, float NowValue = 0.f, float MaxValue = 0.f, float RegenRate = 0.f);
+	void InitializeMagicSubsystem(bool UseSubsystem = false, float NowValue = 0.f, float MaxValue = 0.f, float RegenRate = 0.f);
+
+	void InitializeSurvivalSubsystem(bool UseSubsystem = false,
+		float NowHydrationValue = 0.f, float MaxHydrationValue = 0.f, float HydrationRegenRate = 0.f,
+		float NowCaloriesValue = 0.f, float MaxCaloriesValue = 0.f, float CaloriesRegenRate = 0.f);
+
+	void InitializeSubsystem(EVitalityCategory VitalityCategory,
+		bool UseSubsystem = false, float NowValue = 0.f, float MaxValue = 0.f, float RegenRate = 0.f);
+	UFUNCTION(Server, Reliable)	void Server_InitializeHealthSubsystem(bool UseSubsystem = false, float NowValue = 0.f, float MaxValue = 0.f, float RegenRate = 0.f);
+	UFUNCTION(Server, Reliable)	void Server_InitializeStaminaSubsystem(bool UseSubsystem = false, float NowValue = 0.f, float MaxValue = 0.f, float RegenRate = 0.f);
+	UFUNCTION(Server, Reliable)	void Server_InitializeMagicSubsystem(bool UseSubsystem = false, float NowValue = 0.f, float MaxValue = 0.f, float RegenRate = 0.f);
+	UFUNCTION(Server, Reliable)	void Server_InitializeSurvivalSubsystem(bool UseSubsystem = false,
+		float NowHydrationValue = 0.f, float MaxHydrationValue = 0.f, float HydrationRegenRate = 0.f,
+		float NowCaloriesValue = 0.f, float MaxCaloriesValue = 0.f, float CaloriesRegenRate = 0.f);
+	
+	
 protected:
 	
 	virtual void BeginPlay() override;

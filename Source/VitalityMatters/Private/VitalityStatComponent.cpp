@@ -302,6 +302,60 @@ float UVitalityStatComponent::GetOtherCoreStat(EVitalityStat StatEnum)
 	return GetCoreStatValue(_OtherStats, StatEnum);
 }
 
+void UVitalityStatComponent::InitializeCoreStats(float StrengthValue, float AgilityValue, float FortitudeValue,
+	float IntellectValue, float AstutenessValue, float CharismaValue)
+{
+	Server_InitializeCoreStats(StrengthValue, AgilityValue, FortitudeValue,
+			IntellectValue, AstutenessValue, CharismaValue);
+}
+
+void UVitalityStatComponent::InitializeNaturalDamageBonuses(const TArray<FStVitalityDamageMap>& DamageMap)
+{
+	Server_InitializeNaturalDamageBonuses(DamageMap);
+}
+
+void UVitalityStatComponent::InitializeNaturalDamageResists(const TArray<FStVitalityDamageMap>& DamageMap)
+{
+	Server_InitializeNaturalDamageResists(DamageMap);
+}
+
+void UVitalityStatComponent::Server_InitializeCoreStats_Implementation(float StrengthValue, float AgilityValue,
+                                                                       float FortitudeValue, float IntellectValue, float AstutenessValue, float CharismaValue)
+{
+	if (GetOwner()->HasAuthority() && !bHasInitialized)
+	{
+		bHasInitialized = true;
+		SetNaturalCoreStat(EVitalityStat::STRENGTH,		StrengthValue);
+		SetNaturalCoreStat(EVitalityStat::AGILITY,		AgilityValue);
+		SetNaturalCoreStat(EVitalityStat::FORTITUDE,	FortitudeValue);
+		SetNaturalCoreStat(EVitalityStat::INTELLECT,	IntellectValue);
+		SetNaturalCoreStat(EVitalityStat::ASTUTENESS,	AstutenessValue);
+		SetNaturalCoreStat(EVitalityStat::CHARISMA,		CharismaValue);
+	}
+}
+
+void UVitalityStatComponent::Server_InitializeNaturalDamageBonuses_Implementation(
+	const TArray<FStVitalityDamageMap>& DamageMap)
+{
+	if (GetOwner()->HasAuthority() && !bDamageBonusesReady)
+	{
+		bDamageBonusesReady = true;
+		for (const FStVitalityDamageMap IntMap : DamageMap)
+			SetNaturalDamageBonusValue(IntMap.DamageType, IntMap.MapValue);
+	}
+}
+
+void UVitalityStatComponent::Server_InitializeNaturalDamageResists_Implementation(
+	const TArray<FStVitalityDamageMap>& DamageMap)
+{
+	if (GetOwner()->HasAuthority() && !bDamageResistsReady)
+	{
+		bDamageResistsReady = true;
+		for (const FStVitalityDamageMap IntMap : DamageMap)
+			SetNaturalResistanceValue(IntMap.DamageType, IntMap.MapValue);
+	}
+}
+
 void UVitalityStatComponent::BindListenerEvents()
 {
 	if (!_BaseStats.OnCoreStatUpdated.IsAlreadyBound(this, &UVitalityStatComponent::NaturalCoreStatUpdated))
@@ -334,15 +388,10 @@ void UVitalityStatComponent::BindListenerEvents()
 
 }
 
-void UVitalityStatComponent::ReloadSettings()
-{
-	BindListenerEvents();
-}
-
 void UVitalityStatComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	ReloadSettings();
+	BindListenerEvents();
 }
 
 void UVitalityStatComponent::OnComponentCreated()

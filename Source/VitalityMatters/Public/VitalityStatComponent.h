@@ -62,8 +62,20 @@ public:
 	UFUNCTION(BlueprintPure) float GetMagicalCoreStat(EVitalityStat StatEnum);
 	UFUNCTION(BlueprintPure) float GetOtherCoreStat(EVitalityStat StatEnum);
 
-	UFUNCTION(BlueprintCallable) void ReloadSettings();
+	void InitializeCoreStats(float StrengthValue, float AgilityValue, float FortitudeValue,
+		float IntellectValue, float AstutenessValue, float CharismaValue);
+	void InitializeNaturalDamageBonuses(const TArray<FStVitalityDamageMap>& DamageMap);
+	void InitializeNaturalDamageResists(const TArray<FStVitalityDamageMap>& DamageMap);
 
+	UFUNCTION(Server, Reliable)
+	void Server_InitializeCoreStats(
+		float StrengthValue, float AgilityValue, float FortitudeValue,
+		float IntellectValue, float AstutenessValue, float CharismaValue);
+	UFUNCTION(Server, Reliable)
+	void Server_InitializeNaturalDamageBonuses(const TArray<FStVitalityDamageMap>& DamageMap = {});
+	UFUNCTION(Server, Reliable)
+	void Server_InitializeNaturalDamageResists(const TArray<FStVitalityDamageMap>& DamageMap = {});
+	
 	UFUNCTION(BlueprintPure) FStVitalityStats GetAllNaturalStats() const	{ return _BaseStats; }
 	UFUNCTION(BlueprintPure) FStVitalityStats GetAllGearStats() const		{ return _GearStats; }
 	UFUNCTION(BlueprintPure) FStVitalityStats GetAllModifiedStats() const	{ return _ModifiedStats; }
@@ -141,6 +153,10 @@ public:
 
 private:
 
+	bool bHasInitialized = false;
+	bool bDamageBonusesReady = false;
+	bool bDamageResistsReady = false;
+	
 	float _CurrentSpeedSprint	= 0.f;
 	float _CurrentSpeedRun		= 0.f;
 	float _CurrentSpeedWalk		= 0.f;
