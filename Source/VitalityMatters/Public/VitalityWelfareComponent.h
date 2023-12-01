@@ -31,6 +31,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnDeath,				AActor*, KillingActor);
 
+// Called when an actor has taken a hit, via multicast (runs on both Svr and Cli)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+	FOnHitAnimation,		UAnimMontage*, AnimMontage, USoundBase*, SoundBase);
+
 // Called whenever the current health value has changed, no matter the cause
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FOnHealthUpdated,		float, CurrentValue, float, MaxValue, float, ValueAsPercent);
@@ -45,7 +49,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FOnHydrationUpdated,	float, CurrentValue, float, MaxValue, float, ValueAsPercent);
 // Called whenever the current calorie value has changed, no matter the cause
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FOnCaloriesUpdated,		float, CurrentValue, float, NewValue, float, ValueAsPercent);
+FOnCaloriesUpdated,			float, CurrentValue, float, NewValue, float, ValueAsPercent);
+// Called whenever the current calorie value has changed, no matter the cause
+
 
 
 /**
@@ -95,6 +101,12 @@ public:
 	UFUNCTION(BlueprintPure) float GetHungerPercent() const;
 	UFUNCTION(BlueprintPure) float GetHungerValue() const { return _CaloriesCurrent; }
 	UFUNCTION(BlueprintPure) float GetCurrentHunger(float& CurrentValue, float& MaxValue) const;
+
+	UFUNCTION(BlueprintCallable) void HitByWeapon();
+	
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_HitByWeaponEffects(
+		UAnimMontage* HitByWeaponAnim, USoundBase* HitByWeaponSound);
 	
 	/* Setter Functions / Mutators */
 	
@@ -173,7 +185,7 @@ private:
 	void Multicast_DamageTaken(AActor* DamageInstigator, float DamageTaken = 0.f);
 	
 	UFUNCTION(Client, Unreliable)
-	void Multicast_VitalityDeath(AActor* DamageInstigator = nullptr);
+	void Multicast_VitalityDeath(AActor* DamageInstigator, UAnimMontage* DeathAnim, USoundBase* DeathSound);
 	
 	UFUNCTION(BlueprintCallable)
 	void SetCombatState(ECombatState CombatState);
@@ -216,8 +228,25 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Vitality Events")
 	FOnCombatStateChanged	OnCombatStateChanged;
 
+	// Called anytime the vitality system takes a hit
+	UPROPERTY(BlueprintAssignable, Category = "Vitality Events")
+	FOnHitAnimation OnHitAnimation;
+
+	// An array of animations played when actor dies, chosen at random
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<UAnimMontage*> DeathAnimations;
+
+	// An array of sounds played when actor dies, chosen at random
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<USoundBase*> DeathSounds;
+
+	// An array of animations played when actor gets hit, chosen at random
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<UAnimMontage*> HitAnimations;
+
+	// An array of sounds played when actor gets hit, chosen at random
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<USoundBase*> HitSounds;
 	
 	// If FALSE, the welfare component will NOT have health-related functionality
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Settings")

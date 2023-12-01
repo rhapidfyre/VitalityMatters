@@ -3,12 +3,13 @@
 #include "VitalityWelfareComponent.h"
 
 #include "AsyncTreeDifferences.h"
+#include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 
-
 /**
- * @brief Damages the components health value, performing internal logic and firing delegates.
  * @param DamageInstigator The actor who applied the damage. Nullptr indicated environmental damage.
+ * @brief Damages the components health value, performing internal logic and firing delegates.
  * @param DamageTaken The amount of damage that is being applied.
  * @return The new value of the components current health value
  */
@@ -41,10 +42,29 @@ float UVitalityWelfareComponent::DamageHealth(AActor* DamageInstigator, float Da
 			_HealthCurrent -= NewDamageValue;
 			Multicast_DamageTaken(DamageInstigator, NewDamageValue);
 			
-			if (_HealthCurrent <= 0.f && !GetIsDead())
+			if (_HealthCurrent <= 0.f)
 			{
-				_IsDead = true;
-				OnDeath.Broadcast(DamageInstigator);
+				if (!GetIsDead())
+				{
+					_IsDead = true;
+					OnDeath.Broadcast(DamageInstigator);
+					
+					UAnimMontage* UsingAnimation = nullptr;
+					const int NumAnimations = HitAnimations.Num();
+					if (HitAnimations.IsValidIndex(0) && NumAnimations > 0)
+						UsingAnimation = DeathAnimations[FMath::RandRange(0,NumAnimations-1)];
+					
+					USoundBase* UsingSound = nullptr;
+					const int NumSounds		= HitSounds.Num();
+					if (HitSounds.IsValidIndex(0) && NumSounds > 0)
+						UsingSound = DeathSounds[FMath::RandRange(0,NumSounds-1)];
+					
+					Multicast_VitalityDeath(DamageInstigator, UsingAnimation, UsingSound);
+				}
+			}
+			else
+			{
+				HitByWeapon();
 			}
 			
 		}
@@ -280,6 +300,36 @@ float UVitalityWelfareComponent::GetCurrentHunger(float& CurrentValue, float& Ma
 	CurrentValue = _CaloriesCurrent;
 	MaxValue     = _CaloriesMax;
 	return GetHungerPercent();
+}
+
+// Determines the animation & sound to be played, then uses multicast to send it
+void UVitalityWelfareComponent::HitByWeapon()
+{
+	// The anim & sound needs to be sent by the server, so it's synchronized
+	UAnimMontage* UsingAnimation = nullptr;
+	const int NumAnimations = HitAnimations.Num();
+	if (HitAnimations.IsValidIndex(0) && NumAnimations > 0)
+		UsingAnimation = HitAnimations[FMath::RandRange(0,NumAnimations-1)];
+	
+	USoundBase* UsingSound = nullptr;
+	const int NumSounds		= HitSounds.Num();
+	if (HitSounds.IsValidIndex(0) && NumSounds > 0)
+		UsingSound = HitSounds[FMath::RandRange(0,NumSounds-1)];
+	
+	Multicast_HitByWeaponEffects(UsingAnimation, UsingSound);
+}
+
+/** Sent to all users when an actor gets hit by a weapon
+ * @param HitByWeaponAnim The animation to play when executed
+ * @param HitByWeaponSound The sound to play when executed
+ */
+void UVitalityWelfareComponent::Multicast_HitByWeaponEffects_Implementation(UAnimMontage* HitByWeaponAnim,
+	USoundBase* HitByWeaponSound)
+{
+	UGameplayStatics::PlaySoundAtLocation(GetWorld(), HitByWeaponSound,
+		GetOwner()->GetActorLocation(), FRotator(), 1.0, 1.0, 0.f);
+	Cast<ACharacter>(GetOwner())->PlayAnimMontage(HitByWeaponAnim);
+	OnHitAnimation.Broadcast(HitByWeaponAnim, HitByWeaponSound);
 }
 
 /**
@@ -819,7 +869,11 @@ void UVitalityWelfareComponent::Multicast_DamageTaken_Implementation(
 * @brief  Sent to the owning client so they can run death-related delegates.
  * @param DamageInstigator The actor who dealt the damage. Nullptr means environmental.
  */
-void UVitalityWelfareComponent::Multicast_VitalityDeath_Implementation(AActor* DamageInstigator)
+void UVitalityWelfareComponent::Multicast_VitalityDeath_Implementation(
+	AActor* DamageInstigator, UAnimMontage* DeathAnim, USoundBase* DeathSound)
 {
+	UGameplayStatics::PlaySoundAtLocation(GetWorld(), DeathSound,
+		GetOwner()->GetActorLocation(), FRotator(), 1.0, 1.0, 0.f);
+	Cast<ACharacter>(GetOwner())->PlayAnimMontage(DeathAnim);
 	OnDeath.Broadcast(DamageInstigator);
 }
