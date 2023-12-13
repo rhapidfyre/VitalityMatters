@@ -16,11 +16,11 @@ struct VITALITYMATTERS_API FStNutritionData : public FTableRowBase
 	// The proper name of the item, when consumed, gives the following data
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FName properName = FName();
 	// The benefit to apply when the item is consumed
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) EEffectsBeneficial addBenefit = EEffectsBeneficial::NONE;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EEffectsBeneficial addBenefit = EEffectsBeneficial::MAX;
 	// The number of seconds to apply the benefit
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) int benefitCount = 1;
 	// The detriment effect to apply when the item is consumed 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) EEffectsDetrimental addDetriment = EEffectsDetrimental::NONE;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EEffectsDetrimental addDetriment = EEffectsDetrimental::MAX;
 	// The number of seconds to apply the detriment
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) int detrimentCount = 1;
 	// Optional actor to spawn when this item is consumed

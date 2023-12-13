@@ -53,7 +53,6 @@ FOnCaloriesUpdated,			float, CurrentValue, float, NewValue, float, ValueAsPercen
 // Called whenever the current calorie value has changed, no matter the cause
 
 
-
 /**
  * Manages all of the Stat-specific members of an actor
  */
@@ -64,9 +63,15 @@ class VITALITYMATTERS_API UVitalityWelfareComponent : public UActorComponent
 	
 public:
 	
-	UVitalityWelfareComponent() { SetIsReplicatedByDefault(true); };
+	UVitalityWelfareComponent()
+	{
+		SetIsReplicatedByDefault(true);
+		SetupDefaultValues();
+	};
 
 	/* Utility & Helper Functions */
+
+	void SetupDefaultValues();
 	
 	UFUNCTION(BlueprintCallable) float DamageHealth(AActor* DamageInstigator = nullptr, float DamageTaken = 0.f);
 	UFUNCTION(BlueprintCallable) float DamageStamina(AActor* DamageInstigator = nullptr, float DamageTaken = 0.f);
@@ -78,28 +83,30 @@ public:
 
 	/* Getter Functions / Accessors */
 
-	UFUNCTION(BlueprintPure) bool GetIsDead() const { return _IsDead; }
-	UFUNCTION(BlueprintPure) ECombatState GetCombatState() const { return _CombatState; };
-	UFUNCTION(BlueprintPure) TArray<FStDamageData> GetDamageHistory() const { return _DamageHistory; }
+	UFUNCTION(BlueprintPure) bool GetIsDead() const { return IsDead_; }
+	UFUNCTION(BlueprintPure) ECombatState GetCombatState() const { return CombatState_; };
+	UFUNCTION(BlueprintPure) TArray<FStDamageData> GetDamageHistory() const { return DamageHistory_; }
 
+	UFUNCTION(BlueprintPure) float GetVitalityStatData(EVitalityCategory VitalityCategory, float& CurrentValue, float& MaxValue) const;
+	
 	UFUNCTION(BlueprintPure) float GetHealthPercent() const;
-	UFUNCTION(BlueprintPure) float GetHealthValue() const { return _HealthCurrent; }
+	UFUNCTION(BlueprintPure) float GetHealthValue() const { return HealthCurrent_; }
 	UFUNCTION(BlueprintPure) float GetCurrentHealth(float& CurrentValue, float& MaxValue) const;
 	
 	UFUNCTION(BlueprintPure) float GetStaminaPercent() const;
-	UFUNCTION(BlueprintPure) float GetStaminaValue() const { return _StaminaCurrent; }
+	UFUNCTION(BlueprintPure) float GetStaminaValue() const { return StaminaCurrent_; }
 	UFUNCTION(BlueprintPure) float GetCurrentStamina(float& CurrentValue, float& MaxValue) const;
 	
 	UFUNCTION(BlueprintPure) float GetMagicPercent() const;
-	UFUNCTION(BlueprintPure) float GetMagicValue() const { return _MagicCurrent; }
+	UFUNCTION(BlueprintPure) float GetMagicValue() const { return MagicCurrent_; }
 	UFUNCTION(BlueprintPure) float GetCurrentMagic(float& CurrentValue, float& MaxValue) const;
 	
 	UFUNCTION(BlueprintPure) float GetHydrationPercent() const;
-	UFUNCTION(BlueprintPure) float GetHydrationValue() const { return _HydrationCurrent; }
+	UFUNCTION(BlueprintPure) float GetHydrationValue() const { return HydrationCurrent_; }
 	UFUNCTION(BlueprintPure) float GetCurrentHydration(float& CurrentValue, float& MaxValue) const;
 	
 	UFUNCTION(BlueprintPure) float GetHungerPercent() const;
-	UFUNCTION(BlueprintPure) float GetHungerValue() const { return _CaloriesCurrent; }
+	UFUNCTION(BlueprintPure) float GetHungerValue() const { return CaloriesCurrent_; }
 	UFUNCTION(BlueprintPure) float GetCurrentHunger(float& CurrentValue, float& MaxValue) const;
 
 	UFUNCTION(BlueprintCallable) void HitByWeapon();
@@ -252,13 +259,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Settings")
 	bool UseHealthSubsystem = true;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Settings")
-	float StartingHealthCurrent = 0.f;
+	float StartingHealthCurrent = 100.f;
 	// The value that the maximum health should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Settings")
-	float StartingHealthMaximum = 0.f;
+	float StartingHealthMaximum = 100.f;
 	// The value that the passive health regen should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Settings")
-	float PassiveHealthRegen = 1.f;
+	float PassiveHealthRegen = 0.25;
 	// The rate of the health tick timer when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Settings")
 	float HealthTimerTickRate = 0.5;
@@ -268,10 +275,10 @@ public:
 	bool UseStaminaSubsystem = true;
 	// The value that the current stamina should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina Settings")
-	float StartingStaminaCurrent = 0.f;
+	float StartingStaminaCurrent = 100.f;
 	// The value that the maximum stamina should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina Settings")
-	float StartingStaminaMaximum = 0.f;
+	float StartingStaminaMaximum = 100.f;
 	// The value that the passive stamina regen should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina Settings")
 	float PassiveStaminaRegen = 0.082;
@@ -284,10 +291,10 @@ public:
 	bool UseMagicSubsystem = true;
 	// The value that the current magic should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magic Settings")
-	float StartingMagicCurrent = 0.f;
+	float StartingMagicCurrent = 100.f;
 	// The value that the maximum magic should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magic Settings")
-	float StartingMagicMaximum = 0.f;
+	float StartingMagicMaximum = 100.f;
 	// The value that the passive magic regen should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magic Settings")
 	float PassiveMagicRegen = 0.082;
@@ -300,22 +307,22 @@ public:
 	bool UseSurvivalSubsystem = false;
 	// The value that the current magic should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival Settings")
-	float StartingHydrationCurrent = 0.f;
+	float StartingHydrationCurrent = 1000.f;
 	// The value that the current magic should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival Settings")
-	float StartingHungerCurrent = 0.f;
+	float StartingHungerCurrent = 1000.f;
 	// The value that the maximum magic should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival Settings")
-	float StartingHydrationMaximum = 0.f;
+	float StartingHydrationMaximum = 10000.f;
 	// The value that the maximum magic should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival Settings")
-	float StartingHungerMaximum = 0.f;
+	float StartingHungerMaximum = 1000.f;
 	// The value that the passive magic drain should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival Settings")
 	float PassiveHydrationDrain = 0.082;
 	// The value that the passive magic drain should be when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival Settings")
-	float PassiveHungerDrain = 0.082;
+	float PassiveHungerDrain = 0.037;
 	// The rate of the magic tick timer when LoadSettings() is called
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival Settings")
 	float HydrationTimerTickRate = 0.5;
@@ -328,56 +335,56 @@ private:
 	/* Timers */
 	
 	// Timers that manage regeneration & resetting values
-	UPROPERTY() FTimerHandle _HealthTimer;
-	UPROPERTY() FTimerHandle _MagicTimer;
-	UPROPERTY() FTimerHandle _StaminaTimer;
-	UPROPERTY() FTimerHandle _CaloriesTimer;
-	UPROPERTY() FTimerHandle _HydrationTimer;
-	UPROPERTY() FTimerHandle _CombatTimer;
+	UPROPERTY() FTimerHandle HealthTimer_;
+	UPROPERTY() FTimerHandle MagicTimer_;
+	UPROPERTY() FTimerHandle StaminaTimer_;
+	UPROPERTY() FTimerHandle CaloriesTimer_;
+	UPROPERTY() FTimerHandle HydrationTimer_;
+	UPROPERTY() FTimerHandle CombatTimer_;
 		
 	/* Replicated Members */
 
-	UPROPERTY(Replicated) TArray<FStDamageData> _DamageHistory;
+	UPROPERTY(Replicated) TArray<FStDamageData> DamageHistory_;
 	
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_IsDeadChanged)
-	bool  _IsDead        = false;
+	bool  IsDead_        = false;
 	
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CombatStateChanged)
-	ECombatState _CombatState = ECombatState::RELAXED;
+	ECombatState CombatState_ = ECombatState::RELAXED;
 	
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_HealthValueChanged)
-	float _HealthCurrent	= 1.f;
+	float HealthCurrent_	= 1.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_HealthMaxChanged)
-	float _HealthMax		= 1.f;
+	float HealthMax_		= 1.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_MagicValueChanged)
-	float _MagicCurrent		= 1.f;
+	float MagicCurrent_		= 1.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_MagicMaxChanged)
-	float _MagicMax			= 1.f;
+	float MagicMax_			= 1.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_StaminaValueChanged)
-	float _StaminaCurrent	= 1.f;
+	float StaminaCurrent_	= 1.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_StaminaMaxChanged)
-	float _StaminaMax		= 1.f;
+	float StaminaMax_		= 1.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_HydrationValueChanged)
-	float _HydrationCurrent = 1.f;
+	float HydrationCurrent_ = 1.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_HydrationMaxChanged)
-	float _HydrationMax		= 500.f;
+	float HydrationMax_		= 500.f;
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CaloriesValueChanged)
-	float _CaloriesCurrent  = 1.f;	
+	float CaloriesCurrent_  = 1.f;	
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CaloriesMaxChanged)
-	float _CaloriesMax		= 500.f;
+	float CaloriesMax_		= 500.f;
 
 	/* Non-Replicated Members */
 	
-	float _HealthRegenAtRest	= 1.f;
-	float _MagicRegenAtRest		= 1.f;
-	float _StaminaRegenAtRest	= 1.f;
-	float _CaloriesDrainAtRest  = 0.082;
-	float _HydrationDrainAtRest = 0.082;
+	float HealthRegenAtRest_	= 1.f;
+	float MagicRegenAtRest_		= 1.f;
+	float StaminaRegenAtRest_	= 1.f;
+	float CaloriesDrainAtRest_  = 0.082;
+	float HydrationDrainAtRest_ = 0.082;
 
-	float _HealthTimerTickRate		= 1.f;
-	float _StaminaTimerTickRate		= 1.f;
-	float _MagicTimerTickRate		= 1.f;
-	float _HydrationTimerTickRate	= 1.f;
-	float _HungerTimerTickRate		= 1.f;
+	float HealthTimerTickRate_		= 1.f;
+	float StaminaTimerTickRate_		= 1.f;
+	float MagicTimerTickRate_		= 1.f;
+	float HydrationTimerTickRate_	= 1.f;
+	float HungerTimerTickRate_		= 1.f;
 	
 };

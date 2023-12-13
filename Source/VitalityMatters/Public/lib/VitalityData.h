@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "VitalityEnums.h"
+#include "VitalityGlobals.h"
 #include "UObject/Object.h"
 #include "Delegates/Delegate.h"
 
@@ -20,7 +21,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageResistUpdated,
 
 
 USTRUCT(BlueprintType)
-struct FStDamageData
+struct VITALITYMATTERS_API FStDamageData
 {
 	GENERATED_BODY()
 	FStDamageData() {};
@@ -33,70 +34,77 @@ struct FStDamageData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) AActor* DamagingActor  = nullptr;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float LastDamageValue  = 0.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float TotalDamageDealt = 0.f;
-	
 };
 
 USTRUCT(BlueprintType)
-struct FStVitalityStatMap
+struct VITALITYMATTERS_API FStVitalityStats
 {
 	GENERATED_BODY()
-	FStVitalityStatMap() {}
-	FStVitalityStatMap(EVitalityStat CoreStat, float NewValue)
+	
+	FStVitalityStats()
 	{
-		StatEnum   = CoreStat;
-		MapValue   = NewValue;
-	};
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) EVitalityStat StatEnum = EVitalityStat::STRENGTH;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MapValue = 0.f;
-};
+		const int nCoreStats = UVitalitySystem::GetNumberOfCoreStats();
+		CoreStats.SetNum(nCoreStats, true);
+		for (int i = 0; i < nCoreStats; i++)
+			CoreStats[i] = 0.f;
+		
+		const int nDamageTypes = UVitalitySystem::GetNumberOfDamageTypes();
+		DamageBonuses.SetNum(nDamageTypes, true);
+		DamageResists.SetNum(nDamageTypes, true);
+		for (int i = 0; i < nDamageTypes; i++)
+		{
+			DamageBonuses[i] = 0.f;
+			DamageResists[i] = 0.f;
+		}
+	}
 
-USTRUCT(BlueprintType)
-struct FStVitalityDamageMap
-{
-	GENERATED_BODY()
-	FStVitalityDamageMap() {};
-	FStVitalityDamageMap(EDamageType DamageEnum, float NewValue)
-	{
-		DamageType = DamageEnum;
-		MapValue   = NewValue;
-	};
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) EDamageType DamageType = EDamageType::ADMIN;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MapValue = 0.f;
-};
-
-USTRUCT(BlueprintType)
-struct FStVitalityStats
-{
-	GENERATED_BODY()
-	
-	FStVitalityStats() {}
-	~FStVitalityStats() {}
-	
+	// Allows safe mutation of CoreStats by using the Enum. Otherwise, access directly with CoreStats[i]
 	void SetCoreStat(const EVitalityStat StatEnum, const int NewValue);
+	// Allows safe mutation of DamageBonuses by using the Enum. Otherwise, access directly with DamageBonuses[i]
 	void SetDamageBonus(const EDamageType DamageEnum, const int NewValue);
+	// Allows safe mutation of DamageResists by using the Enum. Otherwise, access directly with DamageResists[i]
 	void SetDamageResistance(const EDamageType DamageEnum, const int NewValue);
-
+	
+	// Allows safe access to CoreStats by using the Enum
 	float GetCoreStatValue(const EVitalityStat StatEnum) const;
+	// Allows safe access to DamageBonuses by using the Enum
 	float GetDamageBonusValue(const EDamageType DamageEnum) const;
+	// Allows safe access to DamageResists by using the Enum
 	float GetDamageResistValue(const EDamageType DamageEnum) const;
 	
 	UPROPERTY(BlueprintAssignable) FOnCoreStatUpdated		OnCoreStatUpdated;
 	UPROPERTY(BlueprintAssignable) FOnDamageBonusUpdated	OnDamageBonusUpdated;
 	UPROPERTY(BlueprintAssignable) FOnDamageResistUpdated	OnDamageResistanceUpdated;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStVitalityStatMap> CoreStats;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStVitalityDamageMap> DamageBonuses;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FStVitalityDamageMap> DamageResistances;
+
+	// Adds or removes core stat points. Access directly to set to a specific value.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<float> CoreStats = {};
+	// Adds or removes damage bonus points. Access directly to set to a specific value.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<float> DamageBonuses = {};
+	// Adds or removes damage resistance points. Access directly to set to a specific value.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<float> DamageResists = {};
 	
 };
 
+/** Used for data tables, for things like character creation.
+ * For direct access, use FStVitalityStats
+ */
+USTRUCT()
+struct VITALITYMATTERS_API FStVitalityData : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FStVitalityStats StatsGroup = {};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TMap<FName, int> VitalityEffects = {};
+	
+};
 
 /**
  * The base damage type for all Adventure Zero related damage
  * Should be for inheritance only. Don't implement this at the production level.
  */
 UCLASS()
-class UDamageTypeBase : public UDamageType
+class VITALITYMATTERS_API UDamageTypeBase : public UDamageType
 {
 	GENERATED_BODY()
 	
@@ -116,7 +124,7 @@ public:
 
 // Generic parent class for any type of uncategorized physical damage
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypePhysical : public UDamageTypeBase
+class VITALITYMATTERS_API UDamageTypePhysical : public UDamageTypeBase
 {
 	GENERATED_BODY()
 public:
@@ -125,7 +133,7 @@ public:
 
 // Generic parent class for any type of uncategorized magical damage
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeMagical : public UDamageTypeBase
+class VITALITYMATTERS_API UDamageTypeMagical : public UDamageTypeBase
 {
 	GENERATED_BODY()
 public:
@@ -134,7 +142,7 @@ public:
 
 // Generic parent class for any type of uncategorized elemental damage
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeElemental : public UDamageTypeBase
+class VITALITYMATTERS_API UDamageTypeElemental : public UDamageTypeBase
 {
 	GENERATED_BODY()
 public:
@@ -143,7 +151,7 @@ public:
 
 // Generic parent class for any type of uncategorized natural damage
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeNatural : public UDamageTypeBase
+class VITALITYMATTERS_API UDamageTypeNatural : public UDamageTypeBase
 {
 	GENERATED_BODY()
 public:
@@ -153,7 +161,7 @@ public:
 
 // Damage dealt by an unknown, non-resistible source
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeAdmin : public UDamageTypeBase
+class VITALITYMATTERS_API UDamageTypeAdmin : public UDamageTypeBase
 {
 	GENERATED_BODY()
 public:
@@ -162,7 +170,7 @@ public:
 
 // Damage dealt by natural acid
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeAcid : public UDamageTypeNatural
+class VITALITYMATTERS_API UDamageTypeAcid : public UDamageTypeNatural
 {
 	GENERATED_BODY()
 public:
@@ -171,7 +179,7 @@ public:
 
 // Damage dealt by natural cold
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeCold : public UDamageTypeElemental
+class VITALITYMATTERS_API UDamageTypeCold : public UDamageTypeElemental
 {
 	GENERATED_BODY()
 public:
@@ -180,7 +188,7 @@ public:
 
 // Damage dealt by dark magic
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeDark : public UDamageTypeMagical
+class VITALITYMATTERS_API UDamageTypeDark : public UDamageTypeMagical
 {
 	GENERATED_BODY()
 public:
@@ -189,7 +197,7 @@ public:
 
 // Damage dealt by natural heat
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeHeat : public UDamageTypeElemental
+class VITALITYMATTERS_API UDamageTypeHeat : public UDamageTypeElemental
 {
 	GENERATED_BODY()
 public:
@@ -198,7 +206,7 @@ public:
 
 // Damage dealt by divine energy
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeHoly : public UDamageTypeMagical
+class VITALITYMATTERS_API UDamageTypeHoly : public UDamageTypeMagical
 {
 	GENERATED_BODY()
 public:
@@ -207,7 +215,7 @@ public:
 
 // Damage dealt by electrical shock
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeShock : public UDamageTypeElemental
+class VITALITYMATTERS_API UDamageTypeShock : public UDamageTypeElemental
 {
 	GENERATED_BODY()
 public:
@@ -216,7 +224,7 @@ public:
 
 // Damage dealt by sharp edges
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeSlash : public UDamageTypePhysical
+class VITALITYMATTERS_API UDamageTypeSlash : public UDamageTypePhysical
 {
 	GENERATED_BODY()
 public:
@@ -225,7 +233,7 @@ public:
 
 // Damage dealt by rigid things
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeBlunt : public UDamageTypePhysical
+class VITALITYMATTERS_API UDamageTypeBlunt : public UDamageTypePhysical
 {
 	GENERATED_BODY()
 public:
@@ -234,7 +242,7 @@ public:
 
 // Damage dealt by sonic blasts
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeSonic : public UDamageTypeMagical
+class VITALITYMATTERS_API UDamageTypeSonic : public UDamageTypeMagical
 {
 	GENERATED_BODY()
 public:
@@ -243,7 +251,7 @@ public:
 
 // Damage dealt by natural chemicals
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypeToxic : public UDamageTypeNatural
+class VITALITYMATTERS_API UDamageTypeToxic : public UDamageTypeNatural
 {
 	GENERATED_BODY()
 public:
@@ -252,7 +260,7 @@ public:
 
 // Damage dealt by pokey things
 UCLASS(BlueprintType, Blueprintable)
-class UDamageTypePierce : public UDamageTypePhysical
+class VITALITYMATTERS_API UDamageTypePierce : public UDamageTypePhysical
 {
 	GENERATED_BODY()
 public:

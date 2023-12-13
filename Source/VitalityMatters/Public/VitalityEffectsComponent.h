@@ -48,9 +48,9 @@ public:
 
 	UFUNCTION(BlueprintCallable) int GetNumberOfActiveBenefits(EEffectsBeneficial BenefitEffect);
 	UFUNCTION(BlueprintCallable) int GetNumberOfActiveDetriments(EEffectsDetrimental DetrimentEffect);
-	UFUNCTION(BlueprintPure) int GetNumberOfActiveEffects() const { return _CurrentEffects.Num(); }
+	UFUNCTION(BlueprintPure) int GetNumberOfActiveEffects() const { return CurrentEffects_.Num(); }
 
-	UFUNCTION(BlueprintPure) TArray<FStVitalityEffects> GetAllActiveEffects() const { return _CurrentEffects; }
+	UFUNCTION(BlueprintPure) TArray<FStVitalityEffects> GetAllActiveEffects() const { return CurrentEffects_; }
 	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByBenefit(EEffectsBeneficial BenefitEffect);
 	UFUNCTION(BlueprintCallable) TArray<FStVitalityEffects> GetAllEffectsByDetriment(EEffectsDetrimental DetrimentEffect);
 	
@@ -100,18 +100,18 @@ private:
 
 	// Write Lock: Stops all writing AND reading
 	// Read Lock:  Stops all writing, allows any number of reads
-	FRWLock _EffectsLock;
+	FRWLock EffectsLock_;
 	//FRWLock _AddQueueLock;
 	//FRWLock _RemoveQueueLock;
 	
-	UPROPERTY() FTimerHandle _EffectsTimer;
+	UPROPERTY() FTimerHandle EffectsTimer_;
 
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_CurrentEffectsChanged)
-	TArray<FStVitalityEffects> _CurrentEffects;
+	TArray<FStVitalityEffects> CurrentEffects_;
 
 	
-	TArray<FStVitalityEffects> _AddQueue;	// Thread safe add queue
-	TArray<int> _RemoveQueue;				// Thread safe remove queue
+	TArray<FStVitalityEffects> AddQueue_;	// Thread safe add queue
+	TArray<int> RemoveQueue_;				// Thread safe remove queue
 	
 	
 };

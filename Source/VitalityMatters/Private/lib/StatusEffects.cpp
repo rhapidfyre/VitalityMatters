@@ -3,7 +3,8 @@
 
 #include "lib/StatusEffects.h"
 
-UDataTable* UVitalitySystem::GetVitalityEffectsTable()
+
+UDataTable* UVitalityEffect::GetVitalityEffectsTable()
 {
 	const FSoftObjectPath itemTable = FSoftObjectPath("/VitalityMatters/DataTables/DT_VitalityData.DT_VitalityData");
 	UDataTable* dataTable = Cast<UDataTable>(itemTable.ResolveObject());
@@ -11,7 +12,7 @@ UDataTable* UVitalitySystem::GetVitalityEffectsTable()
 	return Cast<UDataTable>(itemTable.TryLoad());
 }
 
-FStVitalityEffects UVitalitySystem::GetVitalityEffect(FName EffectName)
+FStVitalityEffects UVitalityEffect::GetVitalityEffect(FName EffectName)
 {
 	UDataTable* vitalityData = GetVitalityEffectsTable();
 	if (IsValid(vitalityData))
@@ -26,9 +27,9 @@ FStVitalityEffects UVitalitySystem::GetVitalityEffect(FName EffectName)
 	return FStVitalityEffects();
 }
 
-FStVitalityEffects UVitalitySystem::GetVitalityEffectByBenefit(EEffectsBeneficial EffectEnum)
+FStVitalityEffects UVitalityEffect::GetVitalityEffectByBenefit(EEffectsBeneficial EffectEnum)
 {
-	if (EffectEnum != EEffectsBeneficial::NONE)
+	if (EffectEnum != EEffectsBeneficial::MAX)
 	{
 		const FString effectString = UEnum::GetValueAsString(EffectEnum);
 		return GetVitalityEffect(*effectString);
@@ -36,9 +37,9 @@ FStVitalityEffects UVitalitySystem::GetVitalityEffectByBenefit(EEffectsBeneficia
 	return FStVitalityEffects();
 }
 
-FStVitalityEffects UVitalitySystem::GetVitalityEffectByDetriment(EEffectsDetrimental EffectEnum)
+FStVitalityEffects UVitalityEffect::GetVitalityEffectByDetriment(EEffectsDetrimental EffectEnum)
 {
-	if (EffectEnum != EEffectsDetrimental::NONE)
+	if (EffectEnum != EEffectsDetrimental::MAX)
 	{
 		const FString effectString = UEnum::GetValueAsString(EffectEnum);
 		return GetVitalityEffect(*effectString);
@@ -46,16 +47,15 @@ FStVitalityEffects UVitalitySystem::GetVitalityEffectByDetriment(EEffectsDetrime
 	return FStVitalityEffects();
 }
 
-bool UVitalitySystem::IsVitalityNameValid(FName EffectName)
+bool UVitalityEffect::GetIsVitalityEffectNameValid(const FName EffectName)
 {
-	const FStVitalityEffects vEffect = GetVitalityEffect(EffectName);
+	return GetIsVitalityEffectValid( GetVitalityEffect(EffectName) );
+}
+
+bool UVitalityEffect::GetIsVitalityEffectValid(const FStVitalityEffects& VitalityEffect)
+{
 	return (
-		   vEffect.benefitEffect   != EEffectsBeneficial::NONE
-		|| vEffect.detrimentEffect != EEffectsDetrimental::NONE
+		   VitalityEffect.benefitEffect   != EEffectsBeneficial::MAX
+		|| VitalityEffect.detrimentEffect != EEffectsDetrimental::MAX
 		);
-}
-
-bool UVitalitySystem::IsVitalityDataValid(FStVitalityEffects& VitalityEffect)
-{
-	return IsVitalityNameValid(VitalityEffect.properName);
 }

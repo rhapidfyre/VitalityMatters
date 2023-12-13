@@ -3,6 +3,7 @@
 
 #include "VitalityEffectsComponent.h"
 
+#include "lib/VitalityGlobals.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -21,9 +22,9 @@ void UVitalityEffectsComponent::Server_InitializeEffects_Implementation(const TA
 	if (GetOwner()->HasAuthority() && !bHasInitialized)
 	{
 		bHasInitialized = true;
-		FRWScopeLock ReadLock(_EffectsLock, SLT_Write);
-		_CurrentEffects.Empty();
-		_CurrentEffects = SavedEffects;
+		FRWScopeLock ReadLock(EffectsLock_, SLT_Write);
+		CurrentEffects_.Empty();
+		CurrentEffects_ = SavedEffects;
 	}
 }
 
@@ -35,18 +36,18 @@ void UVitalityEffectsComponent::Server_InitializeEffects_Implementation(const TA
  */
 bool UVitalityEffectsComponent::ApplyEffect(FName EffectName, int StackCount)
 {
-	FStVitalityEffects vitalityData = UVitalitySystem::GetVitalityEffect(EffectName);
+	FStVitalityEffects vitalityData = UVitalityEffect::GetVitalityEffect(EffectName);
 	vitalityData.uniqueId = GenerateUniqueId();
 	if (vitalityData.uniqueId < 1)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to generate unique ID for ApplyEffectBeneficial"));
 		return false;
 	}
-	if (!vitalityData.properName.IsNone())
+	if (!UVitalityEffect::GetIsVitalityEffectValid(vitalityData))
 	{
 		for (int i = 0; i < StackCount; i++)
 		{
-			_AddQueue.Add(vitalityData);
+			AddQueue_.Add(vitalityData);
 		}
 	}
 	return false;
@@ -61,30 +62,30 @@ bool UVitalityEffectsComponent::ApplyEffect(FName EffectName, int StackCount)
 bool UVitalityEffectsComponent::ApplyEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount)
 {
 	// Do nothing if the effect or stack count is invalid
-	if (EffectBeneficial == EEffectsBeneficial::NONE || StackCount < 1)
+	if (EffectBeneficial == EEffectsBeneficial::MAX || StackCount < 1)
 		return false;
 
 	// Obtain the appropriate vitality effect the given StackCount number of times
-	FStVitalityEffects vitalityData = UVitalitySystem::GetVitalityEffectByBenefit(EffectBeneficial);
+	FStVitalityEffects vitalityData = UVitalityEffect::GetVitalityEffectByBenefit(EffectBeneficial);
 	vitalityData.uniqueId = GenerateUniqueId();
 	if (vitalityData.uniqueId < 1)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to generate unique ID for ApplyEffectBeneficial"));
 		return false;
 	}
-	if (vitalityData.benefitEffect != EEffectsBeneficial::NONE)
+	if (vitalityData.benefitEffect != EEffectsBeneficial::MAX)
 	{
 		//exp scope for good measure
 		{
-			FRWScopeLock ReadLock(_EffectsLock, SLT_Write);
+			FRWScopeLock ReadLock(EffectsLock_, SLT_Write);
 			int effectStackCount(1);
-			for (int i = 0; i < _CurrentEffects.Num(); i++)
+			for (int i = 0; i < CurrentEffects_.Num(); i++)
 			{
-				if (_CurrentEffects[i].benefitEffect == EffectBeneficial)
+				if (CurrentEffects_[i].benefitEffect == EffectBeneficial)
 					effectStackCount += 1;
 			}
 			for (int i = 0; i < StackCount; i++)
-				_CurrentEffects.Add(vitalityData);
+				CurrentEffects_.Add(vitalityData);
 		}
 	}
 	return false;
@@ -98,11 +99,11 @@ bool UVitalityEffectsComponent::ApplyEffectBeneficial(EEffectsBeneficial EffectB
 bool UVitalityEffectsComponent::ApplyEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount)
 {
 	// Do nothing if the effect or stack count is invalid
-	if (EffectDetrimental == EEffectsDetrimental::NONE || StackCount < 1)
+	if (EffectDetrimental == EEffectsDetrimental::MAX || StackCount < 1)
 		return false;
 
 	// Obtain the effect data, and apply it the number of StackCount times
-	FStVitalityEffects vitalityData = UVitalitySystem::GetVitalityEffectByDetriment(EffectDetrimental);
+	FStVitalityEffects vitalityData = UVitalityEffect::GetVitalityEffectByDetriment(EffectDetrimental);
 	vitalityData.uniqueId = GenerateUniqueId();
 	if (vitalityData.uniqueId < 1)
 	{
@@ -110,10 +111,10 @@ bool UVitalityEffectsComponent::ApplyEffectDetrimental(EEffectsDetrimental Effec
 		return false;
 	}
 	
-	if (vitalityData.detrimentEffect != EEffectsDetrimental::NONE)
+	if (vitalityData.detrimentEffect != EEffectsDetrimental::MAX)
 	{
 		for (int i = 0; i < StackCount; i++)
-			_AddQueue.Add(vitalityData);
+			AddQueue_.Add(vitalityData);
 	}
 	
 	return false;
@@ -126,11 +127,11 @@ bool UVitalityEffectsComponent::ApplyEffectDetrimental(EEffectsDetrimental Effec
  */
 FStVitalityEffects UVitalityEffectsComponent::GetEffectByUniqueId(int UniqueId) 
 {
-	FRWScopeLock ReadLock(_EffectsLock, SLT_Write);
-	for (int i = 0; i < _CurrentEffects.Num(); i++)
+	FRWScopeLock ReadLock(EffectsLock_, SLT_Write);
+	for (int i = 0; i < CurrentEffects_.Num(); i++)
 	{
-		if (_CurrentEffects[i].uniqueId == UniqueId)
-			return _CurrentEffects[i];
+		if (CurrentEffects_[i].uniqueId == UniqueId)
+			return CurrentEffects_[i];
 	}
 	return {};
 }
@@ -146,16 +147,16 @@ bool UVitalityEffectsComponent::RemoveEffect(FName EffectName, int RemoveCount)
 	TArray<int> effectsRemoved;
 	// exp scope for good measure
 	{
-		FRWScopeLock ReadLock(_EffectsLock, SLT_Write);
-		for (int i = 0; i < _CurrentEffects.Num(); i++)
+		FRWScopeLock ReadLock(EffectsLock_, SLT_Write);
+		for (int i = 0; i < CurrentEffects_.Num(); i++)
 		{
 			if (effectsRemoved.Num() >= RemoveCount)
 				break;
 		
-			if (_CurrentEffects[i].properName == EffectName)
+			if (CurrentEffects_[i].EffectName == EffectName)
 			{
-				effectsRemoved.Add(_CurrentEffects[i].uniqueId);
-				_RemoveQueue.Add(_CurrentEffects[i].uniqueId);
+				effectsRemoved.Add(CurrentEffects_[i].uniqueId);
+				RemoveQueue_.Add(CurrentEffects_[i].uniqueId);
 			}
 		
 		}
@@ -170,12 +171,12 @@ bool UVitalityEffectsComponent::RemoveEffect(FName EffectName, int RemoveCount)
  */
 bool UVitalityEffectsComponent::RemoveEffectByUniqueId(int UniqueId)
 {
-	FRWScopeLock ReadLock(_EffectsLock, SLT_Write);
-	for (int i = 0; i < _CurrentEffects.Num(); i++)
+	FRWScopeLock ReadLock(EffectsLock_, SLT_Write);
+	for (int i = 0; i < CurrentEffects_.Num(); i++)
 	{		
-		if (_CurrentEffects[i].uniqueId == UniqueId)
+		if (CurrentEffects_[i].uniqueId == UniqueId)
 		{
-			_RemoveQueue.Add(_CurrentEffects[i].uniqueId);
+			RemoveQueue_.Add(CurrentEffects_[i].uniqueId);
 			return true;
 		}
 	}
@@ -189,18 +190,18 @@ bool UVitalityEffectsComponent::RemoveEffectByUniqueId(int UniqueId)
  */
 bool UVitalityEffectsComponent::RemoveEffectAtIndex(int IndexNumber)
 {
-	if (!_CurrentEffects.IsValidIndex(IndexNumber))
+	if (!CurrentEffects_.IsValidIndex(IndexNumber))
 		return false;
-	if (_EffectsLock.TryReadLock())
+	if (EffectsLock_.TryReadLock())
 	{
 		UE_LOG(LogTemp, Error
 			, TEXT("RemoveEffectAtIndex(): Tried to remove index %d, but reading is not locked!")
 			, IndexNumber);
 		return false;
 	}
-	const int UniqueId		= _CurrentEffects[IndexNumber].uniqueId;
-	const FName EffectName	= _CurrentEffects[IndexNumber].properName;
-	_CurrentEffects.RemoveAt(IndexNumber);
+	const int UniqueId		= CurrentEffects_[IndexNumber].uniqueId;
+	const FName EffectName	= CurrentEffects_[IndexNumber].EffectName;
+	CurrentEffects_.RemoveAt(IndexNumber);
 	OnEffectDetrimentalExpired.Broadcast(UniqueId, EffectName);
 	return true;
 }
@@ -214,26 +215,26 @@ bool UVitalityEffectsComponent::RemoveEffectAtIndex(int IndexNumber)
 bool UVitalityEffectsComponent::RemoveEffectBeneficial(EEffectsBeneficial EffectBeneficial, int StackCount)
 {
 	// Return false if invalid effect or stack count
-	if (EffectBeneficial == EEffectsBeneficial::NONE || StackCount < 1)
+	if (EffectBeneficial == EEffectsBeneficial::MAX || StackCount < 1)
 		return false;
 
 
 	// Remove the effect the given number of times, or until all occurrences are gone. Whichever occurs first.
 	TMap<int, FName> removedUniqueIds;
 
-	FRWScopeLock ReadLock(_EffectsLock, SLT_Write);
+	FRWScopeLock ReadLock(EffectsLock_, SLT_Write);
 	
-	for (int i = 0; i < _CurrentEffects.Num(); i++)
+	for (int i = 0; i < CurrentEffects_.Num(); i++)
 	{
 		// Only remove up to the requested amount of stacks
 		if (removedUniqueIds.Num() >= StackCount)
 			break;
 	
-		if (_CurrentEffects[i].benefitEffect == EffectBeneficial)
+		if (CurrentEffects_[i].benefitEffect == EffectBeneficial)
 		{
 			// Add the effect to the remove queue for safe removal
-			removedUniqueIds.Add(_CurrentEffects[i].uniqueId, _CurrentEffects[i].properName);
-			_RemoveQueue.Add(_CurrentEffects[i].uniqueId);
+			removedUniqueIds.Add(CurrentEffects_[i].uniqueId, CurrentEffects_[i].EffectName);
+			RemoveQueue_.Add(CurrentEffects_[i].uniqueId);
 		}
 	}
 	
@@ -250,24 +251,24 @@ bool UVitalityEffectsComponent::RemoveEffectBeneficial(EEffectsBeneficial Effect
 bool UVitalityEffectsComponent::RemoveEffectDetrimental(EEffectsDetrimental EffectDetrimental, int StackCount)
 {
 	// Return false if invalid effect or stack count
-	if (EffectDetrimental == EEffectsDetrimental::NONE || StackCount < 1)
+	if (EffectDetrimental == EEffectsDetrimental::MAX || StackCount < 1)
 		return false;
 
 	// Remove the effect the given number of times, or until all occurrences are gone. Whichever occurs first.
 	TMap<int, FName> removedUniqueIds;
 	
-	FRWScopeLock ReadLock(_EffectsLock, SLT_Write);
-	for (int i = 0; i < _CurrentEffects.Num(); i++)
+	FRWScopeLock ReadLock(EffectsLock_, SLT_Write);
+	for (int i = 0; i < CurrentEffects_.Num(); i++)
 	{
 		// Only remove up to the requested amount of stacks
 		if (removedUniqueIds.Num() >= StackCount)
 			break;
 	
-		if (_CurrentEffects[i].detrimentEffect == EffectDetrimental)
+		if (CurrentEffects_[i].detrimentEffect == EffectDetrimental)
 		{
 			// Add the effect to the remove queue for safe removal
-			removedUniqueIds.Add(_CurrentEffects[i].uniqueId, _CurrentEffects[i].properName);
-			_RemoveQueue.Add(_CurrentEffects[i].uniqueId);
+			removedUniqueIds.Add(CurrentEffects_[i].uniqueId, CurrentEffects_[i].EffectName);
+			RemoveQueue_.Add(CurrentEffects_[i].uniqueId);
 		}
 	}
 	return true;
@@ -280,10 +281,10 @@ bool UVitalityEffectsComponent::RemoveEffectDetrimental(EEffectsDetrimental Effe
  */
 int UVitalityEffectsComponent::GetNumberOfActiveBenefits(EEffectsBeneficial BenefitEffect)
 {
-	if (BenefitEffect == EEffectsBeneficial::NONE) return 0;
+	if (BenefitEffect == EEffectsBeneficial::MAX) return 0;
 	int NumEffectsActive(0);
-	FRWScopeLock WriteLock(_EffectsLock, SLT_ReadOnly);
-	for (const FStVitalityEffects& CurrentEffect : _CurrentEffects)
+	FRWScopeLock WriteLock(EffectsLock_, SLT_ReadOnly);
+	for (const FStVitalityEffects& CurrentEffect : CurrentEffects_)
 	{
 		if (CurrentEffect.benefitEffect == BenefitEffect)
 			NumEffectsActive += 1;
@@ -299,10 +300,10 @@ int UVitalityEffectsComponent::GetNumberOfActiveBenefits(EEffectsBeneficial Bene
  */
 int UVitalityEffectsComponent::GetNumberOfActiveDetriments(EEffectsDetrimental DetrimentEffect)
 {
-	if (DetrimentEffect == EEffectsDetrimental::NONE) return 0;
+	if (DetrimentEffect == EEffectsDetrimental::MAX) return 0;
 	int NumEffectsActive(0);
-	FRWScopeLock WriteLock(_EffectsLock, SLT_ReadOnly);
-	for (const FStVitalityEffects& CurrentEffect : _CurrentEffects)
+	FRWScopeLock WriteLock(EffectsLock_, SLT_ReadOnly);
+	for (const FStVitalityEffects& CurrentEffect : CurrentEffects_)
 	{
 		if (CurrentEffect.detrimentEffect == DetrimentEffect)
 			NumEffectsActive += 1;
@@ -319,10 +320,10 @@ int UVitalityEffectsComponent::GetNumberOfActiveDetriments(EEffectsDetrimental D
 TArray<FStVitalityEffects> UVitalityEffectsComponent::GetAllEffectsByBenefit(
 	EEffectsBeneficial BenefitEffect)
 {
-	if (BenefitEffect == EEffectsBeneficial::NONE) return {};
+	if (BenefitEffect == EEffectsBeneficial::MAX) return {};
 	TArray<FStVitalityEffects> EffectCopies;
-	FRWScopeLock WriteLock(_EffectsLock, SLT_ReadOnly);
-	for (const FStVitalityEffects& CurrentEffect : _CurrentEffects)
+	FRWScopeLock WriteLock(EffectsLock_, SLT_ReadOnly);
+	for (const FStVitalityEffects& CurrentEffect : CurrentEffects_)
 	{
 		if (CurrentEffect.benefitEffect == BenefitEffect)
 			EffectCopies.Add(CurrentEffect);
@@ -338,10 +339,10 @@ TArray<FStVitalityEffects> UVitalityEffectsComponent::GetAllEffectsByBenefit(
 TArray<FStVitalityEffects> UVitalityEffectsComponent::GetAllEffectsByDetriment(
 	EEffectsDetrimental DetrimentEffect)
 {
-	if (DetrimentEffect == EEffectsDetrimental::NONE) return {};
+	if (DetrimentEffect == EEffectsDetrimental::MAX) return {};
 	TArray<FStVitalityEffects> EffectCopies;
-	FRWScopeLock WriteLock(_EffectsLock, SLT_ReadOnly);
-	for (const FStVitalityEffects& CurrentEffect : _CurrentEffects)
+	FRWScopeLock WriteLock(EffectsLock_, SLT_ReadOnly);
+	for (const FStVitalityEffects& CurrentEffect : CurrentEffects_)
 	{
 		if (CurrentEffect.detrimentEffect == DetrimentEffect)
 			EffectCopies.Add(CurrentEffect);
@@ -356,9 +357,9 @@ TArray<FStVitalityEffects> UVitalityEffectsComponent::GetAllEffectsByDetriment(
  */
 bool UVitalityEffectsComponent::IsEffectActive(FName EffectName) const
 {
-	for (const FStVitalityEffects CurrentEffect : _CurrentEffects)
+	for (const FStVitalityEffects CurrentEffect : CurrentEffects_)
 	{
-		if (CurrentEffect.properName == EffectName)
+		if (CurrentEffect.EffectName == EffectName)
 			return true;
 	}
 	return false;
@@ -371,7 +372,7 @@ bool UVitalityEffectsComponent::IsEffectActive(FName EffectName) const
  */
 bool UVitalityEffectsComponent::IsEffectIdActive(int UniqueId) const
 {
-	for (const FStVitalityEffects CurrentEffect : _CurrentEffects)
+	for (const FStVitalityEffects CurrentEffect : CurrentEffects_)
 	{
 		if (CurrentEffect.uniqueId == UniqueId)
 			return true;
@@ -386,7 +387,7 @@ bool UVitalityEffectsComponent::IsEffectIdActive(int UniqueId) const
  */
 bool UVitalityEffectsComponent::IsEffectBeneficialActive(EEffectsBeneficial EffectEnum) const
 {
-	for (const FStVitalityEffects CurrentEffect : _CurrentEffects)
+	for (const FStVitalityEffects CurrentEffect : CurrentEffects_)
 	{
 		if (CurrentEffect.benefitEffect == EffectEnum)
 			return true;
@@ -401,7 +402,7 @@ bool UVitalityEffectsComponent::IsEffectBeneficialActive(EEffectsBeneficial Effe
  */
 bool UVitalityEffectsComponent::IsEffectDetrimentalActive(EEffectsDetrimental EffectEnum) const
 {
-	for (const FStVitalityEffects CurrentEffect : _CurrentEffects)
+	for (const FStVitalityEffects CurrentEffect : CurrentEffects_)
 	{
 		if (CurrentEffect.detrimentEffect == EffectEnum)
 			return true;
@@ -417,25 +418,25 @@ void UVitalityEffectsComponent::BeginPlay()
 void UVitalityEffectsComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME_CONDITION(UVitalityEffectsComponent, _CurrentEffects, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UVitalityEffectsComponent, CurrentEffects_, COND_OwnerOnly);
 }
 
 // Runs the tick timer, evaluating each active effect per tick
 void UVitalityEffectsComponent::TickEffects()
 {
 	// Perform any logic effects need done per tick
-	if (_CurrentEffects.Num() > 0)
+	if (CurrentEffects_.Num() > 0)
 	{
-		FRWScopeLock WriteLock(_EffectsLock, SLT_ReadOnly);
-		for (int i = 0; i < _CurrentEffects.Num(); i++)
+		FRWScopeLock WriteLock(EffectsLock_, SLT_ReadOnly);
+		for (int i = 0; i < CurrentEffects_.Num(); i++)
 		{
-			if (_CurrentEffects.IsValidIndex(i))
+			if (CurrentEffects_.IsValidIndex(i))
 			{
-				const FStVitalityEffects vitalityData = _CurrentEffects[i];
+				const FStVitalityEffects vitalityData = CurrentEffects_[i];
 				if (!vitalityData.bIsPersistent)
 				{
-					_CurrentEffects[i].effectTicks--;
-					if (_CurrentEffects[i].effectTicks < 1)
+					CurrentEffects_[i].effectTicks--;
+					if (CurrentEffects_[i].effectTicks < 1)
 					{
 						RemoveEffectAtIndex(i);
 					}
@@ -445,33 +446,33 @@ void UVitalityEffectsComponent::TickEffects()
 	}
 	
 	// Remove any effects that are pending removal
-	if (_RemoveQueue.Num() > 0)
+	if (RemoveQueue_.Num() > 0)
 	{
 		// Lock against any other reading or writing until finished
-		FRWScopeLock WriteLock(_EffectsLock, SLT_Write);
+		FRWScopeLock WriteLock(EffectsLock_, SLT_Write);
 		
-		for (int i = _RemoveQueue.Num() - 1; i >= 0; i--)
+		for (int i = RemoveQueue_.Num() - 1; i >= 0; i--)
 		{
-			for (int j = 0; j < _CurrentEffects.Num(); j++)
+			for (int j = 0; j < CurrentEffects_.Num(); j++)
 			{
-				if (_CurrentEffects[j].uniqueId == _RemoveQueue[i])
+				if (CurrentEffects_[j].uniqueId == RemoveQueue_[i])
 				{
-					_CurrentEffects.RemoveAt(j);
+					CurrentEffects_.RemoveAt(j);
 					break;
 				}
 			}
-			_RemoveQueue.RemoveAt(i);
+			RemoveQueue_.RemoveAt(i);
 		}
 	}
 	
 	// Add any affects that need to be added
-	if (_AddQueue.Num() > 0)
+	if (AddQueue_.Num() > 0)
 	{
-		FRWScopeLock WriteLock(_EffectsLock, SLT_Write);
-		for (int i = _AddQueue.Num() - 1; i >= 0; i--)
+		FRWScopeLock WriteLock(EffectsLock_, SLT_Write);
+		for (int i = AddQueue_.Num() - 1; i >= 0; i--)
 		{
-			_CurrentEffects.Add( _AddQueue[i] );
-			_AddQueue.RemoveAt(i);
+			CurrentEffects_.Add( AddQueue_[i] );
+			AddQueue_.RemoveAt(i);
 		}
 	}
 }
@@ -513,11 +514,11 @@ void UVitalityEffectsComponent::CancelTimer(FTimerHandle& TimerHandle) const
 int UVitalityEffectsComponent::GenerateUniqueId()
 {
 	bool idExists = false;
-	FRWScopeLock ReadLock(_EffectsLock, SLT_ReadOnly);
+	FRWScopeLock ReadLock(EffectsLock_, SLT_ReadOnly);
 	while (idExists)
 	{
 		const int randomNumber = FMath::RandRange(1,INT_MAX);
-		for (const FStVitalityEffects& vEffect : _CurrentEffects)
+		for (const FStVitalityEffects& vEffect : CurrentEffects_)
 		{
 			if (vEffect.uniqueId == randomNumber)
 			{
@@ -547,28 +548,28 @@ void UVitalityEffectsComponent::OnRep_CurrentEffectsChanged_Implementation(
 	// Add all preexisting entries
 	for (const FStVitalityEffects& OldEntry : OldArray)
 	{
-		if (OldEntry.benefitEffect != EEffectsBeneficial::NONE)
-			RemovedBenefitEffects.Add(OldEntry.uniqueId, OldEntry.properName);
+		if (OldEntry.benefitEffect != EEffectsBeneficial::MAX)
+			RemovedBenefitEffects.Add(OldEntry.uniqueId, OldEntry.EffectName);
 		else
-			RemovedDetrimentEffects.Add(OldEntry.uniqueId, OldEntry.properName);
+			RemovedDetrimentEffects.Add(OldEntry.uniqueId, OldEntry.EffectName);
 	}
 
 	// Remove any entries that still exist after the server update
 	// and also add all current effects
 	{
 		// Mutex locks are required on current effects array
-		FRWScopeLock ReadLock(_EffectsLock, SLT_ReadOnly);
-		for (const FStVitalityEffects& CurrentEntry : _CurrentEffects)
+		FRWScopeLock ReadLock(EffectsLock_, SLT_ReadOnly);
+		for (const FStVitalityEffects& CurrentEntry : CurrentEffects_)
 		{
-			if (CurrentEntry.benefitEffect != EEffectsBeneficial::NONE)
+			if (CurrentEntry.benefitEffect != EEffectsBeneficial::MAX)
 			{
-				RemovedBenefitEffects.Add(CurrentEntry.uniqueId, CurrentEntry.properName);
-				AddedBenefitEffects.Add(CurrentEntry.uniqueId, CurrentEntry.properName);
+				RemovedBenefitEffects.Add(CurrentEntry.uniqueId, CurrentEntry.EffectName);
+				AddedBenefitEffects.Add(CurrentEntry.uniqueId, CurrentEntry.EffectName);
 			}
 			else
 			{
-				RemovedDetrimentEffects.Add(CurrentEntry.uniqueId, CurrentEntry.properName);
-				AddedDetrimentEffects.Add(CurrentEntry.uniqueId, CurrentEntry.properName);
+				RemovedDetrimentEffects.Add(CurrentEntry.uniqueId, CurrentEntry.EffectName);
+				AddedDetrimentEffects.Add(CurrentEntry.uniqueId, CurrentEntry.EffectName);
 			}
 		}
 	}
@@ -576,7 +577,7 @@ void UVitalityEffectsComponent::OnRep_CurrentEffectsChanged_Implementation(
 	// Remove any current effects that existed prior to the update
 	for (const FStVitalityEffects& OldEntry : OldArray)
 	{
-		if (OldEntry.benefitEffect != EEffectsBeneficial::NONE)
+		if (OldEntry.benefitEffect != EEffectsBeneficial::MAX)
 			AddedBenefitEffects.Remove(OldEntry.uniqueId);
 		else
 			AddedDetrimentEffects.Remove(OldEntry.uniqueId);

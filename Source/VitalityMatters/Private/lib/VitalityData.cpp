@@ -1,8 +1,6 @@
 ﻿// Copyright Take Five Games, LLC 2023 - All Rights Reserved
 
-
 #include "lib/VitalityData.h"
-
 
 /**
  * @brief Sets the value of the core stat, running the appropriate
@@ -12,15 +10,8 @@
  */
 void FStVitalityStats::SetCoreStat(const EVitalityStat StatEnum, const int NewValue)
 {
-	for (FStVitalityStatMap& StatMap : CoreStats)
-	{
-		if (StatMap.StatEnum == StatEnum)
-		{
-			StatMap.MapValue = NewValue;
-			return;
-		}
-	}
-	CoreStats.Add( FStVitalityStatMap(StatEnum, NewValue) );
+	const int enumAsIndex = static_cast<int>(StatEnum);
+	CoreStats[enumAsIndex] = NewValue;
 	OnCoreStatUpdated.Broadcast(StatEnum);
 }
 
@@ -32,15 +23,8 @@ void FStVitalityStats::SetCoreStat(const EVitalityStat StatEnum, const int NewVa
  */
 void FStVitalityStats::SetDamageBonus(const EDamageType DamageEnum, const int NewValue)
 {
-	for (FStVitalityDamageMap& DamageMap : DamageBonuses)
-	{
-		if (DamageMap.DamageType == DamageEnum)
-		{
-			DamageMap.MapValue = NewValue;
-			return;
-		}
-	}
-	DamageBonuses.Add( FStVitalityDamageMap(DamageEnum, NewValue) );
+	const int enumAsIndex = static_cast<int>(DamageEnum);
+	DamageBonuses[enumAsIndex] = NewValue;
 	OnDamageBonusUpdated.Broadcast(DamageEnum);
 }
 
@@ -53,15 +37,8 @@ void FStVitalityStats::SetDamageBonus(const EDamageType DamageEnum, const int Ne
  */
 void FStVitalityStats::SetDamageResistance(const EDamageType DamageEnum, const int NewValue)
 {
-	for (FStVitalityDamageMap& DamageMap : DamageResistances)
-	{
-		if (DamageMap.DamageType == DamageEnum)
-		{
-			DamageMap.MapValue = NewValue;
-			return;
-		}
-	}
-	DamageResistances.Add( FStVitalityDamageMap(DamageEnum, NewValue) );
+	const int enumAsIndex = static_cast<int>(DamageEnum);
+	DamageResists[enumAsIndex] = NewValue;
 	OnDamageResistanceUpdated.Broadcast(DamageEnum);
 }
 
@@ -72,12 +49,10 @@ void FStVitalityStats::SetDamageResistance(const EDamageType DamageEnum, const i
  */
 float FStVitalityStats::GetCoreStatValue(const EVitalityStat StatEnum) const
 {
-	for (const FStVitalityStatMap& DamageMap : CoreStats)
-	{
-		if (DamageMap.StatEnum == StatEnum)
-			return DamageMap.MapValue;
-	}
-	return 0.f;
+	const int enumAsIndex = static_cast<int>(StatEnum);
+	if (!CoreStats.IsValidIndex(enumAsIndex))
+		return 0.f;
+	return CoreStats[enumAsIndex];
 }
 
 /**
@@ -87,12 +62,10 @@ float FStVitalityStats::GetCoreStatValue(const EVitalityStat StatEnum) const
  */
 float FStVitalityStats::GetDamageBonusValue(const EDamageType DamageEnum) const
 {
-	for (const FStVitalityDamageMap& DamageMap : DamageBonuses)
-	{
-		if (DamageMap.DamageType == DamageEnum)
-			return DamageMap.MapValue;
-	}
-	return 0.f;
+	const int enumAsIndex = static_cast<int>(DamageEnum);
+	if (!DamageBonuses.IsValidIndex(enumAsIndex))
+		return 0.f;
+	return DamageBonuses[enumAsIndex];
 }
 
 /**
@@ -102,11 +75,9 @@ float FStVitalityStats::GetDamageBonusValue(const EDamageType DamageEnum) const
  */
 float FStVitalityStats::GetDamageResistValue(const EDamageType DamageEnum) const
 {
-	for (const FStVitalityDamageMap& DamageMap : DamageResistances)
-	{
-		if (DamageMap.DamageType == DamageEnum)
-			return DamageMap.MapValue;
-	}
-	return 0.f;
+	const int enumAsIndex = static_cast<int>(DamageEnum);
+	if (!DamageResists.IsValidIndex(enumAsIndex))
+		return 0.f;
+	return DamageResists[enumAsIndex];
 }
 
